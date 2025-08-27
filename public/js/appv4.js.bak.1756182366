@@ -5,12 +5,21 @@
     var o = ds && ds.selectedOptions && ds.selectedOptions[0];
     return o ? o.textContent : '';
   }
-  function normalize(s){ return String(s || "").replace(/\r\n?/g, "\n").trim(); }
+
+  function normalize(s){
+    return String(s || "").replace(/\r\n?/g, "\n").trim();
+  }
+
+  // Split free-text into S/O/A/P using common headings (case-insensitive).
+  // Recognizes Subjective/S, Objective/O/Physical exam/Exam, Assessment/A/Impression, Plan/P.
   function parseSOAP(raw){
     var t = normalize(raw);
     if(!t) return { S: "", O: "", A: "", P: "" };
+
     var re = /(^|\n)\s*(subjective|s|objective|o|physical\s*exam|exam|assessment|a|impression|plan|p)\s*:\s*/gi;
-    var hits = [], m;
+    var hits = [];
+    var m;
+
     function toKey(label){
       var L = label.toLowerCase();
       if(L === "subjective" || L === "s") return "S";
@@ -19,46 +28,70 @@
       if(L === "plan" || L === "p") return "P";
       return null;
     }
+
     while((m = re.exec(t)) !== null){
-      var key = toKey(m[2]); if(!key) continue;
-      hits.push({ key, labelStart: m.index + m[1].length, contentStart: m.index + m[0].length });
+      var key = toKey(m[2]);
+      if(!key) continue;
+      // m.index points at the newline or start-of-string; the label starts at m.index + m[1].length
+      hits.push({
+        key: key,
+        labelStart: m.index + m[1].length,
+        contentStart: m.index + m[0].length
+      });
     }
-    if(hits.length === 0) return { S: t, O: "", A: "", P: "" };
+
+    // No headings found: treat entire text as S
+    if(hits.length === 0){
+      return { S: t, O: "", A: "", P: "" };
+    }
+
+    // Build segments between headings
     hits.sort(function(a,b){ return a.contentStart - b.contentStart; });
     var out = { S: "", O: "", A: "", P: "" };
+
+    // Any free text before the first heading becomes S (if S not explicitly present)
     var pre = normalize(t.slice(0, hits[0].labelStart));
-    if(pre) out.S = pre;
+    if(pre){
+      if(hits[0].key === "S") {
+        // We'll append it to S after we compute S's own chunk
+        out.S = pre;
+      } else {
+        out.S = pre;
+      }
+    }
+
     for(var i=0;i<hits.length;i++){
       var start = hits[i].contentStart;
       var end = (i+1 < hits.length) ? hits[i+1].labelStart : t.length;
       var chunk = normalize(t.slice(start, end));
-      if(chunk){
-        var k = hits[i].key;
-        out[k] = out[k] ? (out[k] + "\n\n" + chunk) : chunk;
-      }
+      if(!chunk) continue;
+
+      var k = hits[i].key;
+      if(out[k]) out[k] = (out[k] + "\n\n" + chunk).trim();
+      else out[k] = chunk;
     }
+
     return out;
   }
+
   function headerLine(){
     var client = id('client') ? id('client').value.trim() : '';
-    var dob = id('dob') ? id('dob').value.trim() : '';
-    var sex = id('sex') ? id('sex').value.trim() : '';
     var duration = id('duration') ? id('duration').value.trim() : '';
     var disc = disciplineLabel();
     var parts = [];
     if(client) parts.push('Client: ' + client);
-    if(dob) parts.push('DOB: ' + dob);
-    if(sex) parts.push('Sex: ' + sex);
     if(duration) parts.push('Duration: ' + duration);
     if(disc) parts.push('Discipline: ' + disc);
     return parts.join(' | ');
   }
+
   function toSOAP(){
     var parsed = parseSOAP(id('note') ? id('note').value : '');
     var S = parsed.S || '(no subjective text)';
     var O = parsed.O || '(objective)';
     var A = parsed.A || '(assessment)';
     var P = parsed.P || '(plan)';
+
     var lines = [];
     var head = headerLine();
     if(head) lines.push(head);
@@ -68,59 +101,61 @@
     lines.push('P: ' + P);
     return lines.join("\n\n");
   }
-  function showToast(msg){
-    var div = document.createElement('div');
-    div.textContent = msg;
-    div.style.position = 'fixed';
-    div.style.bottom = '20px';
-    div.style.right = '20px';
-    div.style.background = '#333';
-    div.style.color = '#fff';
-    div.style.padding = '8px 12px';
-    div.style.borderRadius = '6px';
-    div.style.fontSize = '14px';
-    div.style.zIndex = 9999;
-    document.body.appendChild(div);
-    setTimeout(function(){ div.style.opacity='0'; }, 1200);
-    setTimeout(function(){ div.remove(); }, 1800);
+
+  // Downloads and printing
+  function download(filename, mime, content){
+    var blob = new Blob([content], {type: mime});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 100);
   }
+
+  function toRTF(text){
+    function esc(s){ return s.replace(/\\/g,'\\\\').replace(/{/g,'\\{').replace(/}/g,'\\}'); }
+    var body = esc(text).replace(/\r?\n\r?\n/g, '\\par\\par ').replace(/\r?\n/g, '\\par ');
+    return '{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Arial;}}\\f0\\fs22 ' + body + '}';
+  }
+
   function onGenerate(){ var so = id('soap'); if(so) so.value = toSOAP(); }
   function onCopy(){
     var t=id('soap'); if(!t||!t.value) return;
-    t.select(); try{ document.execCommand('copy'); showToast("Copied!"); }catch(e){}
+    t.select(); try{ document.execCommand('copy'); }catch(e){}
     window.getSelection().removeAllRanges();
   }
-  function onClear(){ if(id('note')) id('note').value=''; if(id('soap')) id('soap').value=''; }
-  function onDownloadTxt(){ download('soap_note.txt', 'text/plain;charset=utf-8', id('soap').value || toSOAP()); }
-  function onDownloadRtf(){ download('soap_note.rtf', 'application/rtf', toRTF(id('soap').value || toSOAP())); }
+  function onClear(){
+    if(id('note')) id('note').value='';
+    if(id('soap')) id('soap').value='';
+  }
+  function onDownloadTxt(){
+    var name = 'soap_note.txt';
+    download(name, 'text/plain;charset=utf-8', id('soap').value || toSOAP());
+  }
+  function onDownloadRtf(){
+    var name = 'soap_note.rtf';
+    var content = toRTF(id('soap').value || toSOAP());
+    download(name, 'application/rtf', content);
+  }
   function onPrint(){
     var content = (id('soap').value || toSOAP()).replace(/</g,'&lt;');
     var w = window.open('', '_blank');
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>SOAP Note</title><style>body{font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;line-height:1.35;padding:24px}</style></head><body>'+content+'</body></html>');
     w.document.close(); w.focus(); w.print(); setTimeout(function(){ w.close(); }, 200);
   }
-  function download(filename, mime, content){
-    var blob = new Blob([content], {type: mime});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click();
-    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 100);
-  }
-  function toRTF(text){
-    function esc(s){ return s.replace(/\\/g,'\\\\').replace(/{/g,'\\{').replace(/}/g,'\\}'); }
-    var body = esc(text).replace(/\r?\n\r?\n/g, '\\par\\par ').replace(/\r?\n/g, '\\par ');
-    return '{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Arial;}}\\f0\\fs22 ' + body + '}';
-  }
+
   function wire(){
     var g=id('generate'), c=id('copy'), x=id('clear');
     var dt=id('downloadTxt'), dr=id('downloadRtf'), pr=id('print');
-    if(g) g.addEventListener('click', onGenerate);
-    if(c) c.addEventListener('click', onCopy);
-    if(x) x.addEventListener('click', onClear);
-    if(dt) dt.addEventListener('click', onDownloadTxt);
-    if(dr) dr.addEventListener('click', onDownloadRtf);
-    if(pr) pr.addEventListener('click', onPrint);
+    g&&g.addEventListener('click', onGenerate);
+    c&&c.addEventListener('click', onCopy);
+    x&&x.addEventListener('click', onClear);
+    dt&&dt.addEventListener('click', onDownloadTxt);
+    dr&&dr.addEventListener('click', onDownloadRtf);
+    pr&&pr.addEventListener('click', onPrint);
   }
+
   document.addEventListener('DOMContentLoaded', wire);
 })();

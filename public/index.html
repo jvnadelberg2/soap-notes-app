@@ -1,54 +1,88 @@
 <!doctype html>
-<html lang="en" data-marker="ONEPAGE-FIX2">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>SOAP Notes (Local)</title>
-    <link rel="stylesheet" href="css/app.css">
-    <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 16px; }
-      .wrap { max-width: 920px; margin: 0 auto; }
-      .row { display: flex; gap: 12px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
-      label { display: flex; gap: 6px; align-items: center; }
-      textarea { width: 100%; height: 180px; }
-      .out { background: #f7f7f9; padding: 10px; border: 1px solid #ddd; min-height: 100px; white-space: pre-wrap; }
-      .warn { color: #b00020; margin-left: 10px; }
-      #status { margin-left: 10px; font-weight: 600; }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <h1>SOAP Notes (Local)</h1>
-      <div class="row">
-        <label>Client <input id="client" placeholder="JS"></label>
-        <label>Duration
-          <select id="duration">
-            <option>30</option><option selected>45</option><option>60</option>
-          </select>
-        </label>
-        <label>Template
-          <select id="template">
-            <option selected>SOAP</option><option>DAP</option><option>BIRP</option>
-          </select>
-        </label>
-      </div>
-      <textarea id="note" placeholder="Paste or type raw session notes here"></textarea>
-      <div class="row">
-        <button id="generate">Generate</button>
-        <span id="status"></span>
-        <span id="warn" class="warn" hidden></span>
-      </div>
-      <h3>Summary</h3>
-      <pre id="summary" class="out"></pre>
-      <h3>Note</h3>
-      <pre id="soap" class="out"></pre>
-      <div class="row">
-        <button id="copy-soap">Copy SOAP</button>
-        <button id="copy-summary">Copy Summary</button>
-        <button id="save-txt">Save TXT</button>
-        <button id="save-pdf">Save PDF</button>
-      </div>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SOAP Notes</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    :root { --gap:12px; }
+    body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 20px; line-height: 1.35; }
+    h1 { margin: 0 0 12px 0; }
+    .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--gap); margin-bottom: var(--gap); }
+    label { font-weight: 600; display: block; margin-bottom: 6px; }
+    input, select, textarea, button { font: inherit; }
+    input, select { width: 100%; padding: 8px; box-sizing: border-box; }
+    textarea { width: 100%; min-height: 200px; padding: 10px; box-sizing: border-box; resize: vertical; }
+    #soap { min-height: 360px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+    button { padding: 8px 12px; cursor: pointer; }
+    .col { display: flex; flex-direction: column; gap: var(--gap); }
+    .muted { color: #666; font-size: 0.9em; }
+    @media print { .grid, .actions, #note { display: none !important; } #soap { min-height: auto; border: none; } }
+  </style>
+</head>
+<body>
+  <h1>SOAP Notes</h1>
+
+  <div class="grid">
+    <div>
+      <label for="client">Client</label>
+      <input id="client" placeholder="Name or ID">
     </div>
-    <script src="js/appv4.js" defer></script>
-  </body>
+    <div>
+      <label for="dob">Date of Birth</label>
+      <input id="dob" type="date">
+    </div>
+    <div>
+      <label for="sex">Sex</label>
+      <select id="sex">
+        <option value="">—</option>
+        <option>Female</option>
+        <option>Male</option>
+        <option>Non-binary</option>
+        <option>Intersex</option>
+        <option>Prefer not to say</option>
+      </select>
+    </div>
+    <div>
+      <label for="duration">Duration</label>
+      <select id="duration">
+        <option value="">—</option>
+        <option>15 min</option>
+        <option>30 min</option>
+        <option>45 min</option>
+        <option>60 min</option>
+        <option>90 min</option>
+      </select>
+    </div>
+    <div>
+      <label for="discipline">Discipline / Role</label>
+      <select id="discipline"></select>
+      <div class="muted">Long list; sorted A–Z inside each group.</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div>
+      <label for="note">Free-text note</label>
+      <textarea id="note" placeholder="Type your note here"></textarea>
+    </div>
+    <div>
+      <label for="soap">Output</label>
+      <textarea id="soap" readonly></textarea>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="generate">Generate</button>
+    <button id="copy">Copy</button>
+    <button id="clear">Clear</button>
+    <button id="downloadTxt">Download .txt</button>
+    <button id="downloadRtf">Download .rtf</button>
+    <button id="print">Print</button>
+  </div>
+
+  <script src="/js/discipline.js" defer></script>
+  <script src="/js/appv4.js" defer></script>
+</body>
 </html>
