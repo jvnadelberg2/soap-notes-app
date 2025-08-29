@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SOAP Notes</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body>
+  <h1>SOAP Notes</h1>
+<label for="discipline">Discipline / Role</label>
+<select id="discipline"></select>
+
+  <label for="discipline">Discipline / Role</label>
+  <select id="discipline"></select>
+  <textarea id="note"></textarea>
+  <button id="generate">Generate</button>
+  <textarea id="soap" readonly></textarea>
+  <script src="js/discipline.js"></script>
+  <script src="js/appv4.js"></script>
+<script>
+(function(){
+  async function populate(){
+    var sel=document.getElementById('discipline');
+    if(!sel) return;
+    sel.innerHTML='';
+    var ph=document.createElement('option'); ph.value=''; ph.textContent='— Select discipline / role —'; sel.appendChild(ph);
+    try{
+      var r=await fetch('disciplines.json',{cache:'no-store'}); var data=await r.json();
+      (data||[]).forEach(function(grp){
+        var og=document.createElement('optgroup'); og.label=grp.label||'';
+        (grp.options||[]).forEach(function(it){
+          var o=document.createElement('option'); o.value=it.value||''; o.textContent=it.label||it.value||''; og.appendChild(o);
+        });
+        sel.appendChild(og);
+      });
+    }catch(e){
+      ['Primary Care / Family Medicine','Psychiatry','Emergency Medicine'].forEach(function(t){
+        var o=document.createElement('option'); o.value=t.toLowerCase().replace(/\\W+/g,'-'); o.textContent=t; sel.appendChild(o);
+      });
+    }
+    var saved=localStorage.getItem('discipline'); if(saved) sel.value=saved;
+    sel.addEventListener('change', function(){ localStorage.setItem('discipline', sel.value); });
+  }
+  function selectedLabel(){
+    var sel=document.getElementById('discipline');
+    var o=sel && sel.selectedOptions && sel.selectedOptions[0];
+    return o?o.textContent:'';
+  }
+  function inject(){
+    var soap=document.getElementById('soap');
+    if(!soap) return;
+    var lbl=selectedLabel(); if(!lbl) return;
+    var v=soap.value||'';
+    if(!/^Discipline: /.test(v)) soap.value='Discipline: '+lbl+'\\n\\n'+v;
+  }
+  document.addEventListener('DOMContentLoaded', function(){ populate(); });
+  document.getElementById('generate')?.addEventListener('click', function(){ setTimeout(inject,0); });
+})();
+</script>
+
+</body>
+</html>

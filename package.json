@@ -1,0 +1,22 @@
+{
+  "name": "therapist-notes-ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server/pinned_index.mjs"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "pdfkit": "^0.13.0"
+  },
+  "description": "",
+  "main": "api.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=22.0.0 <23"
+  }
+}
