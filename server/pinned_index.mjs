@@ -17,6 +17,7 @@ app.get("/", (req, res) => {
 });
 
 const port = 3002;
+app.get("/health",function(_req,res){res.type("application/json").send("{"status":"ok"}");});
 app.listen(port, "127.0.0.1", () => {
   console.log(`SOAP Notes app ready at http://127.0.0.1:${port}`);
 });
