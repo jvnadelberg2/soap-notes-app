@@ -1,0 +1,190 @@
+{
+  "General Practice": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Internal Medicine": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Family Medicine": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Hospital Medicine": {
+    "complexity": "medium",
+    "instructions": "Be concise for handoff/readability. Include overnight events, vitals trends, and disposition."
+  },
+  "Emergency Medicine": {
+    "complexity": "medium",
+    "instructions": "Prioritize life-threats, stability, time-course, and immediate diagnostics/interventions."
+  },
+  "Cardiology": {
+    "complexity": "medium",
+    "instructions": "Emphasize chest pain quality, risk factors, ECG/troponin status, hemodynamics, and ACS risk."
+  },
+  "Pulmonology": {
+    "complexity": "medium",
+    "instructions": "Focus on dyspnea, cough, wheeze, SpO2, imaging status, and exacerbation triggers."
+  },
+  "Gastroenterology": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Endocrinology": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Nephrology": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Rheumatology": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Hematology/Oncology": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Infectious Disease": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Allergy & Immunology": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Geriatrics": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Pediatrics": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Psychiatry": {
+    "complexity": "medium",
+    "instructions": "Use MSE elements (appearance, mood/affect, thought, cognition), risk assessment, and safety plan."
+  },
+  "Neurology": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Pain Medicine": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Palliative Care": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Sports Medicine": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Dermatology": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "OB/GYN": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Urology": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Ophthalmology": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Otolaryngology (ENT)": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "PM&R (Physiatry)": {
+    "complexity": "medium",
+    "instructions": "Detail functional deficits, mobility, ADLs, pain, and therapy goals."
+  },
+  "General Surgery": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Trauma Surgery": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Critical Care": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Orthopedic Surgery": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Neurosurgery": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Plastic Surgery": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Colorectal Surgery": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Vascular Surgery": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Cardiothoracic Surgery": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Bariatric Surgery": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Transplant Surgery": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Physical Therapy": {
+    "complexity": "medium",
+    "instructions": "Document functional limitations, ROM/strength, gait/balance, and clear therapy goals."
+  },
+  "Occupational Therapy": {
+    "complexity": "medium",
+    "instructions": "Emphasize ADLs/IADLs, cognitive-perceptual issues, and adaptive strategies."
+  },
+  "Speech-Language Pathology": {
+    "complexity": "medium",
+    "instructions": "Address speech/swallowing/cognition targets, bedside findings, and plan."
+  },
+  "Respiratory Therapy": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Dietetics/Nutrition": {
+    "complexity": "medium",
+    "instructions": "Assess intake, anthropometrics, labs impacting nutrition, and tailored interventions."
+  },
+  "Pharmacy": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Social Work": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Case Management": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  },
+  "Behavioral Health Counseling": {
+    "complexity": "medium",
+    "instructions": "Use standard SOAP structure. Summarize pertinent positives/negatives. Avoid fabricating data. Use 'Not provided' when missing."
+  }
+}

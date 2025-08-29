@@ -1,0 +1,262 @@
+cat > public/index.html <<'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SOAP Notes</title>
+
+  <!-- White theme styles (simple, readable) -->
+  <style>
+    .page { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 1100px){ .grid-2 { grid-template-columns: 1fr 1fr; } }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; }
+    .card h3 { margin:0; padding:14px 16px; border-bottom:1px solid #eee; font-size:16px; }
+    .card .body { padding:16px; }
+    .row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+    .row-2 { grid-template-columns:1fr 1fr; }
+    label{ font-size:12px; color:#374151; display:block; margin-bottom:6px; }
+    input[type="text"], textarea, select {
+      width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px;
+      background:#fff; color:#111; font-size:14px;
+    }
+    textarea { min-height:110px; resize:vertical; }
+    .hint { font-size:12px; color:#6b7280; margin-top:6px; }
+    .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+    .button { border-radius:8px; padding:10px 14px; border:1px solid #e5e7eb; cursor:pointer; font-weight:600; }
+    .primary{ background:#e0f2fe; } .accent{ background:#dcfce7; } .warn{ background:#fde68a; } .info{ background:#f3e8ff; }
+    pre#jsonOut { min-height:260px; white-space:pre-wrap; word-break:break-word; }
+    #icdOut { min-height:260px; }
+    #status, #downloads { font-size:12px; color:#374151; }
+    ul,ol,li { list-style:none; margin:0; padding:0; } /* no circles */
+    body { background:#fff; color:#111; margin:0; font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; }
+  </style>
+
+  <!-- Optional extra styles (kept for your versioning) -->
+  <link rel="stylesheet" href="/light.css?v=10" />
+
+  <!-- Dropdown loader (models + specialties) -->
+  <script src="/fix-dropdowns.js?v=10" defer></script>
+</head>
+<body>
+  <div class="page">
+    <h1 style="margin:0 0 10px; font-size:22px; font-weight:700;">SOAP Notes</h1>
+    <div class="hint" id="status"></div>
+
+    <div class="grid grid-2">
+      <!-- LEFT -->
+      <div class="grid">
+        <div class="card">
+          <h3>Header</h3>
+          <div class="body">
+            <div class="row row-2">
+              <div>
+                <label for="patient">Patient</label>
+                <input id="patient" type="text" placeholder="e.g., Jane Doe" />
+              </div>
+              <div>
+                <label for="provider">Clinician</label>
+                <input id="provider" type="text" placeholder="e.g., J. Nadelberg, MD" />
+              </div>
+            </div>
+            <div class="row row-2" style="margin-top:12px;">
+              <div>
+                <label for="clinic">Clinic/Practice (PDF header)</label>
+                <input id="clinic" type="text" placeholder="e.g., Demo Clinic" />
+              </div>
+              <div>
+                <label for="model">Model <span id="modelHint" class="hint"></span></label>
+                <select id="model"></select>
+              </div>
+            </div>
+            <div class="row row-2" style="margin-top:12px;">
+              <div>
+                <label for="specialty">Specialty <span id="specCount" class="hint"></span></label>
+                <select id="specialty"></select>
+              </div>
+              <div>
+                <label>&nbsp;</label>
+                <div style="display:flex; gap:12px; align-items:center;">
+                  <label style="display:flex; gap:6px; align-items:center;">
+                    <input type="checkbox" id="allowInference" /> Allow light inference
+                  </label>
+                  <label style="display:flex; gap:6px; align-items:center;">
+                    <input type="checkbox" id="includeICD" checked /> Include ICD-10 suggestions
+                  </label>
+                </div>
+                <div class="hint">When off, content is only from your inputs.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Chief Complaint / HPI</h3>
+          <div class="body">
+            <textarea id="rawText" placeholder="Free-text note..."></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Past/Relevant History</h3>
+          <div class="body">
+            <textarea id="patientHistory" placeholder="Comorbidities, habits, family hx..."></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Vitals & Labs</h3>
+          <div class="body">
+            <div class="row">
+              <div>
+                <label for="vBP">BP</label>
+                <input id="vBP" type="text" placeholder="e.g., 120/80" />
+              </div>
+              <div>
+                <label for="vHR">HR</label>
+                <input id="vHR" type="text" placeholder="e.g., 72" />
+              </div>
+              <div>
+                <label for="vRR">RR</label>
+                <input id="vRR" type="text" placeholder="e.g., 16" />
+              </div>
+            </div>
+            <div style="margin-top:12px;">
+              <label for="labs">Labs (one per line: Key=Value)</label>
+              <textarea id="labs" placeholder="Troponin=19 ng/L&#10;CBC=WNL"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Imaging / Studies</h3>
+          <div class="body">
+            <textarea id="imaging" placeholder="ECG pending&#10;CXR normal"></textarea>
+            <div class="btns">
+              <button id="genJson" class="button primary">Generate JSON</button>
+              <button id="genStream" class="button info">Stream (text)</button>
+              <button id="saveNote" class="button accent">Save Note</button>
+              <button id="exportPdf" class="button warn">Export PDF</button>
+            </div>
+            <div id="downloads" class="hint" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="grid">
+        <div class="card">
+          <h3>Generated SOAP JSON</h3>
+          <div class="body">
+            <pre id="jsonOut">Run generation to see output.</pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>ICD-10 Suggestions</h3>
+          <div class="body">
+            <div id="icdOut" class="hint">Run generation to see suggestions.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page logic for buttons -->
+  <script>
+    function labsToObj(text){
+      const out = {};
+      String(text||"").split(/\\r?\\n/).forEach(line=>{
+        const i = line.indexOf('=');
+        if(i>0){ const k=line.slice(0,i).trim(); const v=line.slice(i+1).trim(); if(k) out[k]=v; }
+      });
+      return Object.keys(out).length ? out : null;
+    }
+    function imagingToArr(text){
+      return String(text||"").split(/\\r?\\n/).map(s=>s.trim()).filter(Boolean);
+    }
+    function buildPayload(){
+      const payload = {
+        rawText: document.getElementById('rawText').value || '',
+        patientHistory: document.getElementById('patientHistory').value || '',
+        specialty: document.getElementById('specialty').value || 'General Practice',
+        allowInference: document.getElementById('allowInference').checked,
+        model: document.getElementById('model').value || null
+      };
+      const vitals = {};
+      const bp=document.getElementById('vBP').value.trim();
+      const hr=document.getElementById('vHR').value.trim();
+      const rr=document.getElementById('vRR').value.trim();
+      if(bp) vitals.BP=bp; if(hr) vitals.HR=hr; if(rr) vitals.RR=rr;
+      if(Object.keys(vitals).length) payload.vitals=vitals;
+      const labs=labsToObj(document.getElementById('labs').value); if(labs) payload.labs=labs;
+      const img=imagingToArr(document.getElementById('imaging').value); if(img.length) payload.imaging=img;
+      return payload;
+    }
+    function setStatus(msg){ document.getElementById('status').textContent = msg || ''; }
+
+    async function generateJSON(){
+      setStatus('Generating...');
+      try{
+        const payload = buildPayload();
+        const r = await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const j = await r.json();
+        document.getElementById('jsonOut').textContent = JSON.stringify(j.data || j, null, 2);
+        if(document.getElementById('includeICD').checked){
+          const icd = Array.isArray(j.icd)?j.icd:[];
+          document.getElementById('icdOut').innerHTML = icd.length
+            ? '<ul>'+icd.map(x=>`<li><b>${x.code}</b> — ${x.term} <span class="hint">(score ${x.score})</span></li>`).join('')+'</ul>'
+            : 'No suggestions.';
+        } else {
+          document.getElementById('icdOut').textContent = 'ICD-10 suggestions disabled.';
+        }
+        setStatus('');
+      }catch(e){ setStatus('Error: '+e.message); }
+    }
+    async function generateStream(){
+      setStatus('Streaming is supported for the Ollama endpoint only.');
+    }
+    async function saveNote(){
+      setStatus('Saving...');
+      try{
+        const payload = buildPayload();
+        const r = await fetch('/api/save-note',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const j = await r.json();
+        if(j.ok){
+          window.__lastNoteId = j.id;
+          document.getElementById('downloads').innerHTML =
+            `<a class="button" href="${j.files.json}" target="_blank">Download JSON</a>
+             <a class="button" href="${j.files.text}" target="_blank">Download TXT</a>`;
+          setStatus('Saved.');
+        } else {
+          setStatus(j.error || 'Failed to save.');
+        }
+      }catch(e){ setStatus('Error: '+e.message); }
+    }
+    async function exportPdf(){
+      const id = window.__lastNoteId;
+      if(!id){ setStatus('Save a note first to export PDF.'); return; }
+      setStatus('Exporting PDF...');
+      try{
+        const header = { clinic: document.getElementById('clinic').value || '', clinician: document.getElementById('provider').value || '' };
+        const r = await fetch('/api/export-pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ id, header })});
+        const j = await r.json();
+        if(j.ok){
+          const box = document.getElementById('downloads');
+          box.innerHTML += ` <a class="button" href="${j.file}" target="_blank">Open PDF</a>`;
+          setStatus('PDF ready.');
+        } else { setStatus(j.error || 'PDF export failed.'); }
+      }catch(e){ setStatus('Error: '+e.message); }
+    }
+    document.addEventListener('DOMContentLoaded', ()=>{
+      document.getElementById('genJson').addEventListener('click', generateJSON);
+      document.getElementById('genStream').addEventListener('click', generateStream);
+      document.getElementById('saveNote').addEventListener('click', saveNote);
+      document.getElementById('exportPdf').addEventListener('click', exportPdf);
+    });
+  </script>
+</body>
+</html>
+EOF
+
