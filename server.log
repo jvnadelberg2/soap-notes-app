@@ -1,4 +1,0 @@
-listening on http://127.0.0.1:3002
-Error: ENOENT: no such file or directory, stat '/Users/jonnadelberg/projects/soap-notes-ai/public/js/app.js'
-Error: ENOENT: no such file or directory, stat '/Users/jonnadelberg/projects/soap-notes-ai/public/js/ui.js'
-Error: ENOENT: no such file or directory, stat '/Users/jonnadelberg/projects/soap-notes-ai/public/js/api.js'
