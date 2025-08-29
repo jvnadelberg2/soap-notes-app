@@ -1,0 +1,17 @@
+{
+  "updatedAt": "2025-08-28T00:00:00.000Z",
+  "items": [
+    {"id":"pdf-export-ui","text":"Hook PDF export into the UI using /api/export-pdf","done":false},
+    {"id":"frontend-auth","text":"Add Basic Auth UX on the frontend","done":false},
+    {"id":"openai-provider","text":"OpenAI provider polish: set OPENAI_API_KEY, install openai, clarify that streaming is Ollama-only","done":false},
+    {"id":"icd-import-verify","text":"Verify full FY2026 ICD-10-CM import and counts","done":false},
+    {"id":"icd-updater","text":"Add cron-friendly ICD updater script and endpoint","done":false},
+    {"id":"icd-search-ui","text":"Expose a UI search box that calls /api/icd-search","done":false},
+    {"id":"phi-security","text":"Ignore notes/ and data/icd10_index.json in Git; consider local encryption/retention policy","done":false},
+    {"id":"tests","text":"Add unit tests for postprocess and ICD search; endpoint smoke tests","done":false},
+    {"id":"deploy","text":"Dockerfile + compose (app + Ollama), CORS domain config, healthcheck","done":false},
+    {"id":"ui-polish","text":"Clipboard buttons, persist provider/model in localStorage, dedupe Objective lines, loading states","done":false},
+    {"id":"specialty-instructions","text":"Refine instruction text per specialty; expand coverage as needed","done":false},
+    {"id":"docs","text":"README and .env.example with setup, routes, and usage","done":false}
+  ]
+}

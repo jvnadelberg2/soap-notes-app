@@ -1,0 +1,281 @@
+[
+  {
+    "code": "R07.9",
+    "term": "Chest pain, unspecified",
+    "keywords": [
+      "chest pain",
+      "cp",
+      "angina",
+      "pressure"
+    ]
+  },
+  {
+    "code": "I20.9",
+    "term": "Angina pectoris, unspecified",
+    "keywords": [
+      "angina",
+      "exertional chest pain",
+      "stable angina"
+    ]
+  },
+  {
+    "code": "I21.9",
+    "term": "Acute myocardial infarction, unspecified",
+    "keywords": [
+      "acute mi",
+      "myocardial infarction",
+      "stemi",
+      "nstemi",
+      "troponin"
+    ]
+  },
+  {
+    "code": "I10",
+    "term": "Essential (primary) hypertension",
+    "keywords": [
+      "hypertension",
+      "htn",
+      "elevated blood pressure",
+      "high bp"
+    ]
+  },
+  {
+    "code": "E11.9",
+    "term": "Type 2 diabetes mellitus without complications",
+    "keywords": [
+      "type 2 diabetes",
+      "t2dm",
+      "dm2",
+      "hyperglycemia"
+    ]
+  },
+  {
+    "code": "E78.5",
+    "term": "Hyperlipidemia, unspecified",
+    "keywords": [
+      "hyperlipidemia",
+      "dyslipidemia",
+      "high cholesterol"
+    ]
+  },
+  {
+    "code": "J45.909",
+    "term": "Unspecified asthma, uncomplicated",
+    "keywords": [
+      "asthma",
+      "wheezing",
+      "bronchospasm"
+    ]
+  },
+  {
+    "code": "J18.9",
+    "term": "Pneumonia, unspecified organism",
+    "keywords": [
+      "pneumonia",
+      "pna",
+      "infiltrate",
+      "consolidation"
+    ]
+  },
+  {
+    "code": "J44.9",
+    "term": "COPD, unspecified",
+    "keywords": [
+      "copd",
+      "emphysema",
+      "chronic bronchitis"
+    ]
+  },
+  {
+    "code": "M54.50",
+    "term": "Low back pain, unspecified",
+    "keywords": [
+      "low back pain",
+      "lbp",
+      "lumbar pain"
+    ]
+  },
+  {
+    "code": "M17.9",
+    "term": "Osteoarthritis of knee, unspecified",
+    "keywords": [
+      "knee oa",
+      "knee osteoarthritis"
+    ]
+  },
+  {
+    "code": "F32.A",
+    "term": "Depression, unspecified",
+    "keywords": [
+      "depression",
+      "mdd",
+      "low mood",
+      "anhedonia"
+    ]
+  },
+  {
+    "code": "F41.1",
+    "term": "Generalized anxiety disorder",
+    "keywords": [
+      "anxiety",
+      "gad",
+      "worry",
+      "nervous"
+    ]
+  },
+  {
+    "code": "N39.0",
+    "term": "Urinary tract infection, site not specified",
+    "keywords": [
+      "uti",
+      "dysuria",
+      "frequency",
+      "burning"
+    ]
+  },
+  {
+    "code": "K21.9",
+    "term": "Gastro-esophageal reflux disease without esophagitis",
+    "keywords": [
+      "gerd",
+      "reflux",
+      "heartburn"
+    ]
+  },
+  {
+    "code": "E03.9",
+    "term": "Hypothyroidism, unspecified",
+    "keywords": [
+      "hypothyroid",
+      "elevated tsh",
+      "fatigue cold intolerance"
+    ]
+  },
+  {
+    "code": "J02.9",
+    "term": "Acute pharyngitis, unspecified",
+    "keywords": [
+      "sore throat",
+      "pharyngitis"
+    ]
+  },
+  {
+    "code": "H66.90",
+    "term": "Otitis media, unspecified",
+    "keywords": [
+      "otitis media",
+      "ear pain",
+      "tm erythema"
+    ]
+  },
+  {
+    "code": "L03.90",
+    "term": "Cellulitis, unspecified site",
+    "keywords": [
+      "cellulitis",
+      "erythema",
+      "warmth",
+      "infection skin"
+    ]
+  },
+  {
+    "code": "G43.909",
+    "term": "Migraine, unspecified, not intractable, without status",
+    "keywords": [
+      "migraine",
+      "headache",
+      "photophobia",
+      "aura"
+    ]
+  },
+  {
+    "code": "I63.9",
+    "term": "Cerebral infarction, unspecified",
+    "keywords": [
+      "stroke",
+      "cva",
+      "weakness",
+      "aphasia"
+    ]
+  },
+  {
+    "code": "I50.9",
+    "term": "Heart failure, unspecified",
+    "keywords": [
+      "heart failure",
+      "hf",
+      "chf",
+      "edema",
+      "orthopnea"
+    ]
+  },
+  {
+    "code": "N18.9",
+    "term": "Chronic kidney disease, unspecified",
+    "keywords": [
+      "ckd",
+      "renal insufficiency",
+      "eGFR"
+    ]
+  },
+  {
+    "code": "U07.1",
+    "term": "COVID-19",
+    "keywords": [
+      "covid",
+      "sars-cov-2",
+      "loss of smell",
+      "fever cough"
+    ]
+  },
+  {
+    "code": "E66.9",
+    "term": "Obesity, unspecified",
+    "keywords": [
+      "obesity",
+      "bmi elevated",
+      "overweight"
+    ]
+  },
+  {
+    "code": "Z00.00",
+    "term": "Encounter for adult health check-up w/o abnormal findings",
+    "keywords": [
+      "annual exam",
+      "wellness visit",
+      "preventive"
+    ]
+  },
+  {
+    "code": "K58.9",
+    "term": "Irritable bowel syndrome, unspecified",
+    "keywords": [
+      "ibs",
+      "abdominal pain",
+      "bowel habit change"
+    ]
+  },
+  {
+    "code": "D64.9",
+    "term": "Anemia, unspecified",
+    "keywords": [
+      "anemia",
+      "low hgb",
+      "fatigue"
+    ]
+  },
+  {
+    "code": "M25.561",
+    "term": "Pain in right knee",
+    "keywords": [
+      "right knee pain"
+    ]
+  },
+  {
+    "code": "M25.562",
+    "term": "Pain in left knee",
+    "keywords": [
+      "left knee pain"
+    ]
+  }
+]
