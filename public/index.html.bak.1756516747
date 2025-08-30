@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SOAP Note</title>
+  <link rel="stylesheet" href="/light.css?v=101" />
+  <style>
+    :root { color-scheme: light; }
+    body { background:#fff; color:#111; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    .page { max-width: 1360px; margin: 20px auto; padding: 0 16px; }
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: 1fr; }
+    @media (min-width: 1024px){ .grid-2 { grid-template-columns: 1.15fr 0.85fr; } }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; }
+    .card h3 { margin:0; padding:12px 14px; border-bottom:1px solid #eee; font-size:15px; color:#111; }
+    .card .body { padding:14px; }
+    .row { display:grid; gap:12px; }
+    .row-2 { grid-template-columns: 1fr 1fr; }
+    .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+    @media (max-width: 720px){ .row-2, .row-3 { grid-template-columns: 1fr; } }
+    label { font-size:12px; color:#374151; display:block; margin-bottom:6px; }
+    input[type="text"], textarea, select { width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#111; font-size:14px; }
+    textarea { min-height:110px; resize:vertical; }
+    .hint { font-size:12px; color:#6b7280; }
+    .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+    .button { border-radius:8px; padding:10px 14px; border:1px solid #e5e7eb; cursor:pointer; font-weight:600; background:#fff; }
+    .primary { background:#e0f2fe; }
+    .accent  { background:#dcfce7; }
+    .warn    { background:#fde68a; }
+    .info    { background:#f3e8ff; }
+    pre#soapTextOut { min-height:240px; background:#fff; color:#111; border:1px solid #e5e7eb; border-radius:8px; padding:12px; white-space:pre-wrap; word-break:break-word; margin:0; }
+    #icdOut { min-height:120px; }
+    ul,ol,li { list-style:none; padding:0; margin:0; }
+  </style>
+  <script src="/fix-dropdowns.js?v=101" defer></script>
+  <script src="/app.js?v=9910" defer></script>
+</head>
+<body>
+  <div class="page">
+    <div id="status" class="hint"></div>
+    <div class="grid grid-2">
+      <div class="grid">
+        <div class="card">
+          <h3>Patient & Setup</h3>
+          <div class="body">
+            <div class="row row-2">
+              <div><label for="patient">Patient</label><input id="patient" type="text" /></div>
+              <div><label for="provider">Clinician</label><input id="provider" type="text" /></div>
+            </div>
+            <div class="row row-2" style="margin-top:12px;">
+              <div><label for="clinic">Clinic/Practice (PDF header)</label><input id="clinic" type="text" /></div>
+              <div><label for="model">Model <span id="modelHint" class="hint"></span></label><select id="model"></select></div>
+            </div>
+            <div class="row row-2" style="margin-top:12px;">
+              <div><label for="specialty">Specialty <span id="specCount" class="hint"></span></label><select id="specialty"></select></div>
+              <div>
+                <label>&nbsp;</label>
+                <div style="display:flex; gap:12px; align-items:center;">
+                  <label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="allowInference" /> Allow light inference</label>
+                  <label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="includeICD" checked /> Include ICD-10 suggestions</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Chief Complaint / HPI</h3>
+          <div class="body"><textarea id="rawText"></textarea></div>
+        </div>
+        <div class="card">
+          <h3>Past/Relevant History</h3>
+          <div class="body"><textarea id="patientHistory"></textarea></div>
+        </div>
+        <div class="card">
+          <h3>Vitals & Labs</h3>
+          <div class="body">
+            <div class="row row-3">
+              <div><label for="vBP">BP</label><input id="vBP" type="text" /></div>
+              <div><label for="vHR">HR</label><input id="vHR" type="text" /></div>
+              <div><label for="vRR">RR</label><input id="vRR" type="text" /></div>
+            </div>
+            <div style="margin-top:12px;">
+              <label for="labs">Labs (one per line: Key=Value)</label>
+              <textarea id="labs"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Imaging / Studies</h3>
+          <div class="body">
+            <textarea id="imaging"></textarea>
+            <div class="btns">
+              <button id="genStream" class="button info">Stream (text)</button>
+              <button id="saveNote" class="button accent">Save Note</button>
+              <button id="exportPdf" class="button warn">Export PDF</button>
+            </div>
+            <div id="downloads" class="hint" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h3>Generated SOAP Note</h3>
+          <div class="body"><pre id="soapTextOut"></pre></div>
+        </div>
+        <div class="card">
+          <h3>ICD-10 Suggestions</h3>
+          <div class="body"><div id="icdOut" class="hint"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
