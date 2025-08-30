@@ -45,3 +45,12 @@ export function normalizeSOAP(json) {
   }
   return out;
 }
+
+export function formatSoapText(json){
+  const j=json||{};
+  const S=(j.Subjective||'Not provided');
+  const O=(j.Objective||'Not provided');
+  const A=(j.Assessment||'Not provided');
+  const P=(j.Plan||'Not provided');
+  return 'Subjective:\n'+S+'\n\nObjective:\n'+O+'\n\nAssessment:\n'+A+'\n\nPlan:\n'+P+'\n';
+}

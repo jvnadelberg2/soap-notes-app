@@ -6,11 +6,13 @@
   function extractFromHPI(hpi) {
     const out = { vitals:{}, labs:{} };
     const s = String(hpi||'');
-    const mBP = s.match(/\bBP[:\s]*([0-9]{2,3}\/[0-9]{2,3})\b/i);
-    if (mBP) out.vitals.BP = mBP[1];
+    const mBP = s.match(/\bBP[:\s]*([0-9]{2,3}\s*\/\s*[0-9]{2,3})\b/i);
+    if (mBP) out.vitals.BP = mBP[1].replace(/\s+/g,'');
     const mHR = s.match(/\b(?:HR|Pulse)[:\s]*([0-9]{2,3})\b/i);
     if (mHR) out.vitals.HR = mHR[1];
-    const mRR = s.match(/\b(?:RR|Resp(?:iratory)?\s*Rate)[:\s]*([0-9]{1,2})\b/i);
+    const mRR = s.match(/\b(?:RR|Resp(?:iratory)?(?:\s*Rate)?)[:=\s]*([0-9]{1,3})(?!\d)\b/i);
+    if (mRR) out.vitals.RR = mRR[1];
+if (mRR) out.vitals.RR = mRR[1];
     if (mRR) out.vitals.RR = mRR[1];
     s.split(/\r?\n/).forEach(line=>{
       const m = line.match(/^\s*([A-Za-z][\w\s\/\+\-\.%]*?)\s*[:=]\s*(.+)\s*$/);
@@ -130,41 +132,8 @@
   }
 
   function wire(){
-    const b1 = $('#genJson');   if (b1) b1.onclick = generateNote;
     const b2 = $('#genStream'); if (b2) b2.onclick = streamText;
     const b3 = $('#saveNote');  if (b3) b3.onclick = saveNote;
   }
   document.addEventListener('DOMContentLoaded', wire);
-})();
-
-(function(){
-  function q(id){return document.getElementById(id)}
-  function ___autofillFromHPI(){
-    const raw=(q("rawText")?.value||""); const hx=(q("patientHistory")?.value||"");
-    const H = raw + "\n" + hx;
-    const out={vitals:{},labs:{}};
-    let m = H.match(/\b(?:BP|blood\s*pressure)\s*[:=]?\s*([0-9]{2,3}\s*[\/-]\s*[0-9]{2,3})\b/i);
-    if(m) out.vitals.BP = m[1].replace(/\s+/g,"");
-    m = H.match(/\b(?:HR|pulse)\s*[:=]?\s*([0-9]{2,3})(?:\s*bpm)?\b/i);
-    if(m) out.vitals.HR = m[1];
-    m = H.match(/\b(?:RR|resp(?:iratory)?\s*rate?)\s*[:=]?\s*([0-9]{1,3})\b/i);
-    if(m) out.vitals.RR = m[1];
-    H.split(/\r?\n/).forEach(line=>{
-      const mm=line.match(/^\s*([A-Za-z][\w\s\/\+\-\.%]*?)\s*[:=]\s*(.+)\s*$/);
-      if(!mm) return; const k=mm[1].trim(); const v=mm[2].trim();
-      if(/^(BP|HR|Pulse|RR|Resp|Respiratory Rate)$/i.test(k)) return;
-      out.labs[k]=v;
-    });
-    if(out.vitals){ if(out.vitals.BP && !q("vBP").value) q("vBP").value = out.vitals.BP;
-                    if(out.vitals.HR && !q("vHR").value) q("vHR").value = out.vitals.HR;
-                    if(out.vitals.RR && !q("vRR").value) q("vRR").value = out.vitals.RR; }
-    if(Object.keys(out.labs).length && !q("labs").value){
-      q("labs").value = Object.entries(out.labs).map(([k,v])=>k+"="+v).join("\n");
-    }
-  }
-  document.addEventListener("DOMContentLoaded", function(){
-    const a=q("rawText"), b=q("patientHistory");
-    if(a) a.addEventListener("blur", ___autofillFromHPI);
-    if(b) b.addEventListener("blur", ___autofillFromHPI);
-  });
 })();

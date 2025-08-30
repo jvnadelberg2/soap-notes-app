@@ -2,7 +2,8 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { generateSoapNoteJSON, generateSoapNoteText } from "../services/ai.js";
+import { generateSoapNoteJSON } from "../services/ai.js";
+import { formatSoapText } from "../utils/postprocess.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -71,9 +72,8 @@ router.post("/save-note", async (req, res) => {
       ? data
       : await generateSoapNoteJSON({ rawText, patientHistory, specialty, vitals, labs, imaging, allowInference, model, provider });
 
-    const soapText = await generateSoapNoteText({ rawText, patientHistory, specialty, vitals, labs, imaging, allowInference, model, provider });
-
-    const payload = {
+    const soapText = formatSoapText(soapJson);
+const payload = {
       id: base,
       savedAt: new Date().toISOString(),
       specialty,
