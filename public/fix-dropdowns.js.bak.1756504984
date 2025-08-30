@@ -47,28 +47,8 @@
     }
   }
 
-  /* PERSISTENCE v1 */
-  const PREF_KEY='soapUI.prefs.v1';
-  function loadPrefs(){ try{return JSON.parse(localStorage.getItem(PREF_KEY)||'{}')}catch{return{}} }
-  function savePrefs(next){ localStorage.setItem(PREF_KEY, JSON.stringify(Object.assign(loadPrefs(), next||{}))); }
-  function applyPrefs(){
-    const p=loadPrefs();
-    const m=document.querySelector('#model');
-    const sp=document.querySelector('#specialty');
-    const ai=document.querySelector('#allowInference');
-    const icd=document.querySelector('#includeICD');
-    if(m && p.model && Array.from(m.options).some(o=>o.value===p.model)) m.value=p.model;
-    if(sp && p.specialty && Array.from(sp.options).some(o=>o.value===p.specialty)) sp.value=p.specialty;
-    if(ai!=null && typeof p.allowInference==='boolean') ai.checked=p.allowInference;
-    if(icd!=null && typeof p.includeICD==='boolean') icd.checked=p.includeICD;
-  }
   document.addEventListener("DOMContentLoaded", async () => {
     await loadModels();
     await loadSpecialties();
-    applyPrefs();
-    const m=document.querySelector('#model');        if(m)  m.addEventListener('change', ()=>savePrefs({model:m.value}));
-    const sp=document.querySelector('#specialty');   if(sp) sp.addEventListener('change', ()=>savePrefs({specialty:sp.value}));
-    const ai=document.querySelector('#allowInference'); if(ai) ai.addEventListener('change', ()=>savePrefs({allowInference:ai.checked}));
-    const icd=document.querySelector('#includeICD'); if(icd) icd.addEventListener('change', ()=>savePrefs({includeICD:icd.checked}));
   });
 })();
