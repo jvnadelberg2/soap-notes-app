@@ -110,6 +110,14 @@ export async function generateSoapNoteJSON({ rawText, patientHistory, specialty,
   obj.Objective = enrichObjective(obj, { vitals, labs, imaging });
   obj = normalizeSOAP(obj);
   obj = heuristicFill(obj, { rawText, patientHistory, specialty });
+if ((obj.Objective||'').trim() === (obj.Subjective||'').trim()){
+  const kv=(o)=>o&&typeof o==='object'&&Object.keys(o).length?Object.entries(o).map(([k,v])=>k+'='+String(v)).join(', '):'';
+  const parts=[];
+  const vs=kv(vitals); if(vs) parts.push('Vitals: '+vs);
+  const ls=kv(labs); if(ls) parts.push('Labs: '+ls);
+  if(Array.isArray(imaging)&&imaging.length) parts.push('Imaging: '+imaging.map(x=>String(x)).join('; '));
+  obj.Objective = parts.join('\n') || 'Not provided';
+}
 
   return obj;
 }
