@@ -1,162 +1,90 @@
 (function(){
-function el(id){return document.getElementById(id)}
-function val(id){var x=el(id);return x?x.value.trim():""}
-function checked(id){var x=el(id);return x?x.checked:false}
-function outEl(){return document.getElementById("soapTextOut")||document.getElementById("jsonOut")}
-function setStatus(t){var s=el("status"); if(s) s.textContent=t||""}
-
-function parseVitalsFrom(text){
-  var out={}; var T=String(text||"");
-  var m;
-  m=T.match(/\b(?:BP|blood\s*pressure)\s*[:=\s]*([0-9]{2,3})\s*[\/-]\s*([0-9]{2,3})\b/i);
-  if(m) out.BP=m[1]+"/"+m[2];
-  m=T.match(/\b(?:HR|heart\s*rate|pulse)\s*[:=\s]*([0-9]{2,3})(?!\d)\b/i);
-  if(m) out.HR=m[1];
-  m=T.match(/\b(?:RR|resp(?:iratory)?(?:\s*rate)?)\s*[:=\s]*([0-9]{1,3})(?!\d)\b/i);
-  if(m) out.RR=m[1];
-  m=T.match(/\b(?:T|temp(?:erature)?)\s*[:=\s]*([0-9]{2,3}(?:\.[0-9])?)\s*(?:[FC])?\b/i);
-  if(m) out.Temp=m[1];
-  m=T.match(/\b(?:SpO2|SaO2|O2(?:\s*saturation)?)\s*[:=\s]*([0-9]{2,3})\s*%\b/i);
-  if(m) out.SpO2=m[1]+"%";
-  return out;
-}
-
-var VITAL_KEYS=new Set(["BP","BLOOD PRESSURE","HR","HEART RATE","PULSE","RR","RESP","RESPIRATORY RATE","RESPIRATIONS","SPO2","SAO2","O2","TEMP","TEMPERATURE"]);
-function parseLabsList(text){
-  var out={}; var lines=String(text||"").split(/\r?\n/);
-  for(var i=0;i<lines.length;i++){
-    var line=lines[i];
-    var m = line.match(/^\s*([A-Za-z][A-Za-z0-9 /+\-%]{1,32})\s*[:=]\s*(.+)\s*$/);
-    if(!m) continue;
-    var k=m[1].trim().replace(/\s+/g," ");
-    if(VITAL_KEYS.has(k.toUpperCase())) continue;
-    var v=m[2].trim();
-    if(k && v) out[k]=v;
+  var inFlight=false;
+  function $(id){return document.getElementById(id)}
+  function val(id){var el=$(id);return el?(el.value||"").trim():""}
+  function checked(id){var el=$(id);return !!(el&&el.checked)}
+  function safe(s){return String(s==null?"":s).trim()}
+  function setDisabled(btn,on){if(btn){btn.disabled=!!on}}
+  function collectVitals(){var v={},bp=val('vBP'),hr=val('vHR'),rr=val('vRR');if(bp)v.BP=bp;if(hr)v.HR=hr;if(rr)v.RR=rr;return v}
+  function collectLabs(){var t=val('labs');if(!t)return{};var out={};t.split(/\r?\n/).forEach(function(line){var m=line.split(/[:=]/);if(m.length>=2){var k=m[0].trim(),vv=m.slice(1).join('=').trim();if(k)out[k]=vv}});return out}
+  async function generate(e){
+    if(e&&e.preventDefault)e.preventDefault();
+    if(inFlight)return;
+    var btn=$('btnGenerate');inFlight=true;setDisabled(btn,true);
+    var payload={rawText:val('rawText'),patientHistory:val('patientHistory'),specialty:val('specialty')||'General Practice',vitals:collectVitals(),labs:collectLabs(),imaging:{},allowInference:checked('allowInference'),model:val('model')||null,provider:val('provider')||'ollama'};
+    var isEmpty=!payload.rawText&&!payload.patientHistory&&!Object.keys(payload.vitals).length&&!Object.keys(payload.labs).length;
+    if(isEmpty){inFlight=false;setDisabled(btn,false);return}
+    try{
+      const doFetch=async()=>{const res=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!res.ok){const txt=await res.text();throw new Error('HTTP '+res.status+' '+txt.slice(0,200))}return res.json()}
+      let body;try{body=await doFetch()}catch(err){if(String(err).includes('Failed to fetch')){await new Promise(r=>setTimeout(r,300));body=await doFetch()}else{throw err}}
+      var d=(body&&body.data)||{};var t='';if(d.Subjective)t+='Subjective:\n'+safe(d.Subjective)+'\n\n';if(d.Objective)t+='Objective:\n'+safe(d.Objective)+'\n\n';if(d.Assessment)t+='Assessment:\n'+safe(d.Assessment)+'\n\n';if(d.Plan)t+='Plan:\n'+safe(d.Plan)+'\n\n';
+      var out=$('soapTextOut');if(out)out.textContent=t||JSON.stringify(d,null,2);
+      if(Array.isArray(body.icd)&&typeof window.renderICD==='function'){window.renderICD(body.icd)}
+    }catch(err){console.error('Generate failed',err);alert('Generate failed: '+(err&&err.message?err.message:String(err)))}finally{inFlight=false;setDisabled(btn,false)}
   }
-  return out;
-}
-
-function labsTextareaToObj(txt){
-  var out={}; String(txt||"").split(/\r?\n/).forEach(function(line){
-    var i=line.indexOf("="); if(i<=0) return;
-    var k=line.slice(0,i).trim(); var v=line.slice(i+1).trim();
-    if(k && v) out[k]=v;
-  });
-  return out;
-}
-
-function buildPayload(){
-  var payload={
-    rawText: val("rawText"),
-    patientHistory: val("patientHistory"),
-    specialty: (el("specialty")&&el("specialty").value)||"General Practice",
-    allowInference: checked("allowInference"),
-    model: (el("model")&&el("model").value)||null
-  };
-  var vitals={};
-  if(val("vBP")) vitals.BP=val("vBP");
-  if(val("vHR")) vitals.HR=val("vHR");
-  if(val("vRR")) vitals.RR=val("vRR");
-  if(!Object.keys(vitals).length){
-    var auto=parseVitalsFrom(payload.rawText+"\n"+payload.patientHistory);
-    for(var k in auto) vitals[k]=auto[k];
+  function clearPatientData(e){
+    if(e&&e.preventDefault)e.preventDefault();
+    ['patient','rawText','patientHistory','vBP','vHR','vRR','labs'].forEach(function(id){var el=$(id);if(el)el.value=''});
+    var out=$('soapTextOut');if(out)out.textContent='';
+    if(typeof window.renderICD==='function'){window.renderICD([])}
   }
-  if(Object.keys(vitals).length) payload.vitals=vitals;
-
-  var labs=labsTextareaToObj(val("labs"));
-  if(!Object.keys(labs).length){
-    labs=parseLabsList(payload.rawText+"\n"+payload.patientHistory);
+  function wire(){
+    var form=document.querySelector('form'); if(form){ form.addEventListener('submit', function(ev){ ev.preventDefault(); }); }
+    var btn=$('btnGenerate');if(btn){btn.removeEventListener('click',generate);btn.addEventListener('click',generate)}
+    var ta=$('rawText');if(ta){ta.addEventListener('keydown',function(ev){if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault()}})}
+    var clr=$('btnClear');if(clr){clr.removeEventListener('click',clearPatientData);clr.addEventListener('click',clearPatientData)}
   }
-  if(Object.keys(labs).length) payload.labs=labs;
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',wire);else wire();
+  window.__wireGenerate=wire
+})();
+(function(){
+  'use strict';
+  var MODELS = ["ollama/llama3.1:8b","ollama/llama3.1:13b","gpt-4o-mini"];
+  var SPECIALTIES = ["General Practice","Cardiology","Endocrinology","Gastroenterology","Psychiatry","Urology"];
 
-  var imaging=(el("imaging")&&el("imaging").value||"").split(/\r?\n/).map(function(s){return s.trim()}).filter(function(s){return s});
-  if(imaging.length) payload.imaging=imaging;
+  function $(id){ return document.getElementById(id) }
+  function k(id){ return 'sel:'+id }
+  function save(id,v){ try{ sessionStorage.setItem(k(id), String(v||'')) }catch(e){} }
+  function load(id){ try{ return sessionStorage.getItem(k(id))||'' }catch(e){ return '' } }
 
-  return payload;
-}
-
-function showNoteText(t){
-  var out=outEl(); if(!out) return;
-  out.textContent=t||"";
-  out.style.whiteSpace="pre-wrap";
-  out.style.overflowWrap="anywhere";
-}
-
-function showICD(list){
-  var box=el("icdOut"); if(!box) return;
-  var enabled=checked("includeICD");
-  if(!enabled){ box.textContent="ICD-10 suggestions disabled."; return; }
-  if(!Array.isArray(list)||!list.length){ box.textContent="No suggestions."; return; }
-  box.innerHTML="<ul>"+list.map(function(x){return "<li><b>"+x.code+"</b> — "+x.term+"</li>"}).join("")+"</ul>";
-}
-
-var inFlight=false;
-async function generateOnce(){
-  if(inFlight) return;
-  inFlight=true;
-  setStatus("Generating...");
-  try{
-    var payload=buildPayload();
-    var rT=await fetch("/api/generate-soap",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-    var jT=await rT.json();
-    var noteText=jT&&jT.soapNote||"";
-    showNoteText(noteText);
-
-    var rA=await fetch("/api/generate-soap-json-annotated",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-    var jA=await rA.json();
-    showICD(jA.icd||[]);
-  }catch(e){
-    showNoteText("Error: "+(e&&e.message?e.message:String(e)));
-  }finally{
-    setStatus("");
-    inFlight=false;
-  }
-}
-
-function autofillFromHPI(){
-  var hpi=val("rawText")+"\n"+val("patientHistory");
-  var v=parseVitalsFrom(hpi);
-  if(v.BP && !val("vBP")) el("vBP").value=v.BP;
-  if(v.HR && !val("vHR")) el("vHR").value=v.HR;
-  if(v.RR && !val("vRR")) el("vRR").value=v.RR;
-  if(!val("labs")){
-    var labs=parseLabsList(hpi);
-    if(Object.keys(labs).length) el("labs").value=Object.entries(labs).map(function(kv){return kv[0]+"="+kv[1]}).join("\n");
-  }
-}
-
-function wire(){
-  var raw=el("rawText");
-  if(raw){
-    raw.addEventListener("keydown",function(e){
-      if(e.key==="Enter" && !e.shiftKey){
-        e.preventDefault();
-        generateOnce();
-      }
-    });
-    raw.addEventListener("input",autofillFromHPI);
-  }
-  var hx=el("patientHistory");
-  if(hx) hx.addEventListener("input",autofillFromHPI);
-
-  var g=document.getElementById("genJson"); if(g) g.remove();
-  var sbtn=document.getElementById("genStream"); if(sbtn) sbtn.remove();
-  var save=document.getElementById("saveNote");
-  if(save){
-    save.onclick=async function(){
-      var payload=buildPayload();
-      try{
-        var r=await fetch("/api/save-note",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-        var j=await r.json();
-        var d=el("downloads");
-        if(j&&j.ok){ d.innerHTML='<a class="button" href="'+j.files.text+'" target="_blank">Download Text</a> <a class="button" href="'+j.files.json+'" target="_blank">Download Data</a>'; }
-        else { d.textContent=(j&&j.error)||"Failed to save."; }
-      }catch(e){}
+  function dedup(sel){
+    var seen = new Set();
+    for (var i=sel.options.length-1;i>=0;i--){
+      var v = String(sel.options[i].value||sel.options[i].textContent||'').trim().toLowerCase();
+      if (!v) continue;
+      if (seen.has(v)) sel.remove(i); else seen.add(v);
     }
   }
-  var out=outEl(); if(out){ out.style.whiteSpace="pre-wrap"; out.style.overflowWrap="anywhere"; }
-  setTimeout(autofillFromHPI,0);
-}
 
-document.addEventListener("DOMContentLoaded",wire);
+  function setIfEmpty(id, items){
+    var sel = $(id); if (!sel) return;
+    var had = sel.options.length;
+    if (!had){
+      var frag = document.createDocumentFragment();
+      for (var i=0;i<items.length;i++){
+        var txt = String(items[i]||'').trim(); if (!txt) continue;
+        var o = document.createElement('option'); o.value = txt; o.textContent = txt; frag.appendChild(o);
+      }
+      sel.innerHTML = '';
+      sel.appendChild(frag);
+    }
+    dedup(sel);
+    var want = load(id);
+    if (want){
+      for (var j=0;j<sel.options.length;j++){
+        var ov = String(sel.options[j].value||sel.options[j].textContent||'').trim();
+        if (ov === want){ sel.value = sel.options[j].value || sel.options[j].textContent; break; }
+      }
+    }
+    if (!sel.value && sel.options.length) sel.value = sel.options[0].value;
+    sel.addEventListener('change', function(){ save(id, sel.value); }, true);
+    save(id, sel.value);
+  }
+
+  function init(){
+    setIfEmpty('model', MODELS);
+    setIfEmpty('specialty', SPECIALTIES);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

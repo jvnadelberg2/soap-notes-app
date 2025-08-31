@@ -17,7 +17,7 @@ export async function callLLM({ prompt, model = null, provider = "ollama" }) {
           { role: "system", content: "You are a careful medical assistant. Output exactly what the user asks." },
           { role: "user", content: prompt }
         ],
-        temperature: 0
+        temperature:0.2
       });
       const out = resp?.choices?.[0]?.message?.content || "";
       if (DEBUG) console.log("[OPENAI raw]", out.slice(0, 800));

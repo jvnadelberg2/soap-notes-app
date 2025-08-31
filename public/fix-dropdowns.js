@@ -1,74 +1,68 @@
-(async function () {
-  async function jget(url) {
-    const r = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
-    if (!r.ok) throw new Error("GET " + url + " " + r.status);
-    return r.json();
-  }
-  function setOptions(sel, arr, selected) {
-    if (!sel) return;
-    sel.innerHTML = "";
-    arr.forEach(v => {
-      const o = document.createElement("option");
-      o.value = v; o.textContent = v;
-      if (selected && selected === v) o.selected = true;
-      sel.appendChild(o);
+(function(){
+  function $(id){return document.getElementById(id)}
+  function v(o){return String((o&&(o.value||o.textContent))||'').trim()}
+  function setOptions(sel,list){
+    if(!sel)return;
+    var keep=v(sel.options[sel.selectedIndex||0]);
+    sel.innerHTML='';
+    var f=document.createDocumentFragment();
+    var first=document.createElement('option');first.value='';first.textContent='Choose...';f.appendChild(first);
+    var seen=new Set();
+    (list||[]).forEach(function(x){
+      x=String(x||'').trim(); if(!x)return;
+      var k=x.toLowerCase(); if(seen.has(k))return; seen.add(k);
+      var o=document.createElement('option');o.value=x;o.textContent=x;f.appendChild(o);
     });
+    sel.appendChild(f);
+    if(keep) choose(sel,keep);
   }
-
-  async function loadModels() {
-    const sel = document.querySelector("#model");
-    if (!sel) return;
-    try {
-      const j = await jget("/api/models");
-      const list = Array.isArray(j?.models) && j.models.length ? j.models : ["llama3"];
-      setOptions(sel, list, list[0]);
-      const hint = document.querySelector("#modelHint");
-      if (hint) hint.textContent = list.length + " models available";
-    } catch {
-      setOptions(sel, ["llama3"], "llama3");
-      const hint = document.querySelector("#modelHint");
-      if (hint) hint.textContent = "1 model available";
+  function choose(sel,val){
+    var want=String(val||'').toLowerCase();
+    for(var i=0;i<sel.options.length;i++){ if(v(sel.options[i]).toLowerCase()===want){ sel.selectedIndex=i; return } }
+    sel.selectedIndex=Math.min(1,sel.options.length-1);
+  }
+  function relaxOverflow(n){
+    var p=n&&n.parentElement;
+    while(p){ try{ if(getComputedStyle(p).overflow!=='visible') p.style.overflow='visible' }catch(e){} p=p.parentElement }
+  }
+  async function j(u){
+    try{
+      var r=await fetch(u,{headers:{Accept:'application/json'},cache:'no-store'});
+      if(!r.ok)throw 0; return await r.json();
+    }catch(e){return null}
+  }
+  function toList(x,prop){
+    if(!x)return[];
+    if(Array.isArray(x))return x.map(String);
+    if(prop&&Array.isArray(x[prop]))return x[prop].map(String);
+    if(Array.isArray(x.data))return x.data.map(String);
+    return [];
+  }
+  function save(k,vv){try{sessionStorage.setItem(k,String(vv||''))}catch(e){}}
+  function load(k){try{return sessionStorage.getItem(k)||''}catch(e){return''}}
+  async function run(){
+    var m=$('model'), s=$('specialty');
+    if(m) relaxOverflow(m);
+    if(s) relaxOverflow(s);
+    if(m){
+      var mj=await j('/api/models');
+      var ml=toList(mj,'models');
+      if(!ml.length) ml=['ollama/llama3.1:8b','ollama/llama3.1:13b','gpt-4o-mini'];
+      setOptions(m,ml);
+      var wantM=load('sel:model'); if(wantM) choose(m,wantM);
+      m.addEventListener('change',function(){save('sel:model',m.value)},true);
+    }
+    if(s){
+      var sj=await j('/api/specialties');
+      var sl=toList(sj,'specialties');
+      if(!sl.length) sl=['General Practice','Internal Medicine','Family Medicine','Cardiology','Gastroenterology','Psychiatry','Urology'];
+      setOptions(s,sl);
+      var wantS=load('sel:specialty'); if(wantS) choose(s,wantS);
+      s.addEventListener('change',function(){save('sel:specialty',s.value)},true);
     }
   }
-
-  async function loadSpecialties() {
-    const sel = document.querySelector("#specialty");
-    if (!sel) return;
-    try {
-      const j = await jget("/api/specialties");
-      const list = Array.isArray(j?.specialties) ? j.specialties.slice().sort((a,b)=>a.localeCompare(b)) : ["General Practice"];
-      setOptions(sel, list, list[0] || "General Practice");
-      const spec = document.querySelector("#specCount");
-      if (spec) spec.textContent = list.length + " specialties loaded (alphabetical)";
-    } catch {
-      setOptions(sel, ["General Practice"], "General Practice");
-      const spec = document.querySelector("#specCount");
-      if (spec) spec.textContent = "1 specialty loaded";
-    }
+  function start(){
+    var tries=0; var t=setInterval(function(){ run(); if(++tries>=12) clearInterval(t) },300);
   }
-
-  /* PERSISTENCE v1 */
-  const PREF_KEY='soapUI.prefs.v1';
-  function loadPrefs(){ try{return JSON.parse(localStorage.getItem(PREF_KEY)||'{}')}catch{return{}} }
-  function savePrefs(next){ localStorage.setItem(PREF_KEY, JSON.stringify(Object.assign(loadPrefs(), next||{}))); }
-  function applyPrefs(){
-    const p=loadPrefs();
-    const m=document.querySelector('#model');
-    const sp=document.querySelector('#specialty');
-    const ai=document.querySelector('#allowInference');
-    const icd=document.querySelector('#includeICD');
-    if(m && p.model && Array.from(m.options).some(o=>o.value===p.model)) m.value=p.model;
-    if(sp && p.specialty && Array.from(sp.options).some(o=>o.value===p.specialty)) sp.value=p.specialty;
-    if(ai!=null && typeof p.allowInference==='boolean') ai.checked=p.allowInference;
-    if(icd!=null && typeof p.includeICD==='boolean') icd.checked=p.includeICD;
-  }
-  document.addEventListener("DOMContentLoaded", async () => {
-    await loadModels();
-    await loadSpecialties();
-    applyPrefs();
-    const m=document.querySelector('#model');        if(m)  m.addEventListener('change', ()=>savePrefs({model:m.value}));
-    const sp=document.querySelector('#specialty');   if(sp) sp.addEventListener('change', ()=>savePrefs({specialty:sp.value}));
-    const ai=document.querySelector('#allowInference'); if(ai) ai.addEventListener('change', ()=>savePrefs({allowInference:ai.checked}));
-    const icd=document.querySelector('#includeICD'); if(icd) icd.addEventListener('change', ()=>savePrefs({includeICD:icd.checked}));
-  });
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start,{once:true}); else start();
 })();
