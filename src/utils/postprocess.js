@@ -19,12 +19,12 @@ export function enrichObjective(json, { vitals, labs, imaging }) {
   if (baseObj && !baseIsNP) parts.push(baseObj);
 
   const vitalsLine = toKVLines(vitals);
-  if (vitalsLine && !mentionsVitals(baseObj)) {
+  if (vitalsLine) {
     parts.push(`Vitals: ${vitalsLine}`);
   }
 
   const labsLine = toKVLines(labs);
-  if (labsLine && !mentionsLabs(baseObj)) {
+  if (labsLine) {
     parts.push(`Labs: ${labsLine}`);
   }
 

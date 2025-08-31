@@ -1,0 +1,473 @@
+== meta ==
+Sat Aug 30 18:10:43 PDT 2025
+v22.18.0
+10.9.3
+/Users/jonnadelberg/projects/soap-notes-app
+
+== package.json summary ==
+{
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "start:5050": "PORT=5050 node server.js"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "axios": "^1.11.0",
+    "body-parser": "^2.2.0",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^4.21.2",
+    "fuse.js": "^7.1.0",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.1",
+    "openai": "^5.16.0",
+    "pdfkit": "^0.13.0"
+  }
+}
+
+== public/index.html (1..200) ==
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SOAP Note</title>
+  <link rel="stylesheet" href="/light.css?v=101" />
+  <style>
+    :root { color-scheme: light; }
+    body { background:#fff; color:#111; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    .page { max-width: 1360px; margin: 20px auto; padding: 0 16px; }
+    .grid { display: grid; gap: 16px; }
+    
+    @media (min-width: 1024px){  }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; }
+    .card h3 { margin:0; padding:12px 14px; border-bottom:1px solid #eee; font-size:15px; color:#111; }
+    .card .body { padding:14px; }
+    .row { display:grid; gap:12px; }
+    .row-2 { grid-template-columns: 1fr 1fr; }
+    .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+    @media (max-width: 720px){ .row-2, .row-3 { grid-template-columns: 1fr; } }
+    label { font-size:12px; color:#374151; display:block; margin-bottom:6px; }
+    input[type="text"], textarea, select { width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#111; font-size:14px; }
+    textarea { min-height:110px; resize:vertical; }
+    .hint { font-size:12px; color:#6b7280; }
+    .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+    .button { border-radius:8px; padding:10px 14px; border:1px solid #e5e7eb; cursor:pointer; font-weight:600; background:#fff; }
+    .primary { background:#e0f2fe; }
+    .accent  { background:#dcfce7; }
+    .warn    { background:#fde68a; }
+    .info    { background:#f3e8ff; }
+    pre#soapTextOut { min-height:240px; background:#fff; color:#111; border:1px solid #e5e7eb; border-radius:8px; padding:12px; white-space:pre-wrap; word-break:break-word; margin:0; }
+    #icdOut { min-height:120px; }
+    ul,ol,li { list-style:none; padding:0; margin:0; }
+  textarea#rawText{min-height:560px}
+.sticky-card{position:sticky;top:12px}
+pre#soapTextOut{max-height:66vh;overflow:auto}
+.aside{align-self:start}
+
+@media
+pre#soapTextOut{max-height:60vh;overflow:auto}
+@mediapre#soapTextOut{max-height:60vh;overflow:auto}</style>
+  <script src="/fix-dropdowns.js?v=101" defer></script>
+  <script src="/app.js?v=3002" defer></script>
+</head>
+<body>
+  <div class="page">
+    <div id="status" class="hint"></div>
+    <div class="grid grid-2">
+      <div class="grid">
+        <div class="card sticky-card"><h3>Generated SOAP Note</h3>
+          <div class="body"><div id="soapTextOut" class="soapOut"></div></div>
+        </div><div class="grid">
+        <div class="card">
+          <h3>Patient & Setup</h3>
+          <div class="body">
+            <div class="row row-2">
+              <div><label for="patient">Patient</label><input id="patient" type="text" /></div>
+              <div><label for="provider">Clinician</label><input id="provider" type="text" /></div>
+            </div>
+            <div id="statusLine" class="hint" style="margin:8px 0 0 0"></div>
+<div class="row row-2" style="margin-top:12px;">
+              <div><label for="clinic">Clinic/Practice (PDF header)</label><input id="clinic" type="text" /></div>
+              <div><label for="model">Model <span id="modelHint" class="hint"></span></label><select id="model"></select></div>
+            </div>
+            <div class="row row-2" style="margin-top:12px;">
+              <div><label for="specialty">Specialty </label><select id="specialty"></select></div>
+              <div>
+                <label>&nbsp;</label>
+                <div style="display:flex; gap:12px; align-items:center;">
+                  <label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="allowInference" /> Allow light inference</label>
+                  <label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="includeICD" checked /> Include ICD-10 suggestions</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Chief Complaint / HPI</h3>
+          <div class="body"><textarea id="rawText"></textarea></div>
+        </div>
+        
+          </div>
+        </div>
+        </div>
+      </div>
+      
+        <div class="card">
+          <h3>ICD-10 Suggestions</h3>
+          <div class="body"><div id="icdOut" class="hint"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+
+
+
+
+</html>
+
+== public/app.js (1..220) ==
+(function(){
+function el(id){return document.getElementById(id)}
+function val(id){const x=el(id);return x?x.value.trim():""}
+function checked(id){const x=el(id);return x?x.checked:false}
+function outEl(){return document.getElementById("soapTextOut")||document.getElementById("jsonOut")}
+
+function parseVitalsFrom(text){
+  const out={}; const T=String(text||"");
+  let m;
+  m=T.match(/\b(?:BP|blood\s*pressure)\s*[:=\s]\s*([0-9]{2,3}\s*[\/-]\s*[0-9]{2,3})\b/i);
+  if(m) out.BP=m[1].replace(/\s+/g,'');
+  m=T.match(/\b(?:HR|pulse)\s*[:=\s]\s*([0-9]{2,3})(?!\d)\b/i);
+  if(m) out.HR=m[1];
+  m=T.match(/\b(?:RR|resp(?:irations)?|resp(?:iratory)?(?:\s*rate)?)\s*[:=\s]\s*([0-9]{1,3})(?!\d)\b/i);
+  if(m) out.RR=m[1];
+  m=T.match(/\b(?:T|temp(?:erature)?)\s*[:=\s]\s*([0-9]{2,3}(?:\.[0-9])?)\s*(?:[FC])?\b/i);
+  if(m) out.Temp=m[1];
+  m=T.match(/\b(?:SpO2|SaO2|O2(?:\s*saturation)?)\s*[:=\s]\s*([0-9]{2,3})\s*%?\b/i);
+  if(m) out.SpO2=m[1]+(/%/.test(m[0])?'':'%');
+  return out;
+}
+
+const VITAL_KEYS=new Set(["BP","BLOOD PRESSURE","HR","PULSE","RR","RESP","RESPIRATIONS","RESPIRATORY RATE","SPO2","SAO2","O2","TEMP","TEMPERATURE"]);
+function parseLabsList(text){
+  const out={}; const T="\n"+String(text||"")+"\n";
+  const re=/(^|\n)\s*([A-Za-z][A-Za-z0-9 /+\-%\.]{1,40})\s*(?::|=|\s)\s*([^\n,;]+)(?=\n|$|,|;)/g;
+  let m;
+  while((m=re.exec(T))){
+    const k=m[2].trim().replace(/\s+/g,' ');
+    if(VITAL_KEYS.has(k.toUpperCase())) continue;
+    const v=m[3].trim();
+    if(k && v) out[k]=v;
+  }
+  return out;
+}
+
+function showNoteText(text){const out=outEl();if(!out)return;out.textContent=text||"No output."}
+function showICD(list){const box=el('icdOut');if(!box)return;const enabled=checked('includeICD');if(!enabled){box.textContent='ICD-10 suggestions disabled.';return;}if(!Array.isArray(list)||!list.length){box.textContent='No suggestions.';return;}box.innerHTML='<ul>'+list.map(x=>'<li><b>'+x.code+'</b> — '+x.term+'</li>').join('')+'</ul>';}
+
+function parseOneBox(t){
+  const out={}; const s=String(t||""); const lines=s.split(/\r?\n/);
+  let mode=''; const labsLines=[]; const imaging=[]; const hpi=[]; const hx=[];
+  for(const line of lines){
+    const L=line.trim();
+    if(!L){mode='';continue;}
+    const m=L.match(/^([A-Za-z][A-Za-z \/&()]+):\s*(.*)$/i);
+    if(m){
+      const key=m[1].toLowerCase(); const val=m[2];
+      if(key==='patient') out.patient=val;
+      else if(key==='clinician'||key==='provider') out.provider=val;
+      else if(key==='clinic') out.clinic=val;
+      else if(key==='specialty') out.specialty=val;
+      else if(key==='inference'||key==='allow inference') out.allowInference=/^(on|true|yes|1)$/i.test(val);
+      else if(key==='icd') out.includeICD=/^(on|true|yes|1)$/i.test(val);
+      else if(key==='vitals'){const v=parseVitalsFrom(val); if(Object.keys(v).length) out.vitals=v;}
+      else if(key==='labs'){mode='labs'; if(val) labsLines.push(val); continue;}
+      else if(key==='imaging'||key==='studies'){mode='imaging'; if(val) imaging.push(val); continue;}
+      else if(key==='hpi'||key==='note'||key==='subjective'){mode='hpi'; if(val) hpi.push(val); continue;}
+      else if(key==='past'||key==='history'||key==='hx'){mode='hx'; if(val) hx.push(val); continue;}
+    } else {
+      if(mode==='labs') labsLines.push(L);
+      else if(mode==='imaging') imaging.push(L);
+      else if(mode==='hpi') hpi.push(line);
+      else if(mode==='hx') hx.push(line);
+    }
+  }
+  const autoVitals=parseVitalsFrom(s);
+  if(Object.keys(autoVitals).length) out.vitals=Object.assign({}, autoVitals, out.vitals||{});
+  const labs=parseLabsList(labsLines.join("\n"));
+  if(Object.keys(labs).length) out.labs=labs;
+  if(imaging.length) out.imaging=imaging;
+  if(hpi.length) out.rawText=hpi.join("\n");
+  if(hx.length) out.patientHistory=hx.join("\n");
+  return out;
+}
+
+function buildPayload(){
+  const oneText = val('rawText');
+  const payload={
+    rawText: oneText,
+    patientHistory: val('patientHistory'),
+    specialty: (el('specialty')?.value)||'General Practice',
+    allowInference: checked('allowInference'),
+    model: (el('model')?.value)||null
+  };
+  const vitals={};
+  if(val('vBP')) vitals.BP=val('vBP');
+  if(val('vHR')) vitals.HR=val('vHR');
+  if(val('vRR')) vitals.RR=val('vRR');
+  if(!Object.keys(vitals).length){Object.assign(vitals, parseVitalsFrom(oneText+"\n"+payload.patientHistory));}
+  if(Object.keys(vitals).length) payload.vitals=vitals;
+
+  let labs={};
+  (String(val('labs')).split(/\r?\n/)).forEach(line=>{const i=line.indexOf("="); if(i>0){const k=line.slice(0,i).trim(); const v=line.slice(i+1).trim(); if(k&&v) labs[k]=v;}});
+  if(!Object.keys(labs).length) labs=parseLabsList(oneText+"\n"+payload.patientHistory);
+  if(Object.keys(labs).length) payload.labs=labs;
+
+  const imaging=(el('imaging')?.value||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if(imaging.length) payload.imaging=imaging;
+
+  if(oneText){
+    const meta=parseOneBox(oneText);
+    if(meta.rawText) payload.rawText=meta.rawText;
+    if(meta.patientHistory) payload.patientHistory=meta.patientHistory;
+    if(meta.specialty) payload.specialty=meta.specialty;
+    if(typeof meta.allowInference==='boolean') payload.allowInference=meta.allowInference;
+    if(meta.vitals) payload.vitals=Object.assign({}, payload.vitals||{}, meta.vitals);
+    if(meta.labs) payload.labs=Object.assign({}, payload.labs||{}, meta.labs);
+    if(meta.imaging) payload.imaging=meta.imaging;
+  }
+  return payload;
+}
+
+function renderSoapFromData(d){
+  const S=d.Subjective||'Not provided';
+  const O=d.Objective||'Not provided';
+  const A=d.Assessment||'Not provided';
+  const P=d.Plan||'Not provided';
+  return 'Subjective:\n'+S+'\n\nObjective:\n'+O+'\n\nAssessment:\n'+A+'\n\nPlan:\n'+P+'\n';
+}
+
+let __busy=false, __wired=false;
+async function generateOnce(){
+  var s=document.getElementById('statusLine'); if(s){ s.textContent='Working...'; }
+  var g=document.getElementById('btnGenerate'); if(g){ g.disabled=true; }
+
+  if(__busy) return;
+  __busy=true;
+  const status=el('status'); if(status) status.textContent='Generating...';
+  try{
+    const payload=buildPayload();
+    const r=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const j=await r.json();
+    const data=j&&j.data?j.data:j;
+    showNoteText(renderSoapFromData(data));
+    showICD(j.icd||[]);
+    await fetch('/api/save-note',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({},payload,{data}))});
+  }catch(e){
+    showNoteText('Error: '+e.message);
+  }finally{
+  var s=document.getElementById('statusLine'); if(s){ s.textContent=''; }
+  var g=document.getElementById('btnGenerate'); if(g){ g.disabled=false; }
+    __busy=false;
+  }
+}
+
+function wireOnce(){
+  if(__wired) return;
+  __wired=true;
+  const h=el('rawText');
+  if(h) h.addEventListener('keydown', function(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); generateOnce(); } });
+}
+
+document.addEventListener('DOMContentLoaded', function(){ wireOnce(); });
+})();
+document.addEventListener('DOMContentLoaded',function(){
+  var root=document.querySelector('.grid.grid-2');
+  if(!root) return;
+  var right=document.querySelector('.grid.grid-2 > .grid[data-col="right"]');
+  if(!right){ right=document.createElement('div'); right.className='grid'; right.setAttribute('data-col','right'); right.style.gridColumn='2'; root.appendChild(right); }
+  var soap=document.getElementById('soapTextOut'); if(soap){ var card=soap.closest('.card'); if(card){ right.prepend(card); } }
+  var icd=document.getElementById('icdOut'); if(icd){ var card2=icd.closest('.card'); if(card2){ right.appendChild(card2); } }
+});
+document.addEventListener('DOMContentLoaded',function(){
+  var icd=document.getElementById('icdOut'); if(icd){ var c=icd.closest('.card'); if(c){ c.classList.add('icd-card'); c.style.position='relative'; c.style.zIndex='2'; c.style.marginTop='12px'; } }
+});
+(function(){
+function escapeHtml(s){return String(s||"").replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])})}
+function renderSoap(text){
+  var n=document.getElementById('soapTextOut'); if(!n) return;
+  var h=escapeHtml(text).replace(/^(\\s*)(Subjective|Objective|Assessment|Plan)(\\s*[:.-]?)/gmi,'$1<strong>$2$3</strong>');
+  n.innerHTML=h;
+}
+function setWorking(on){
+  var s=document.getElementById('appStatus'); if(!s) return;
+  s.textContent=on?'Working…':'';
+}
+document.addEventListener('DOMContentLoaded',function(){
+  var icdBox=document.getElementById('icdOut');
+  var target=document.getElementById('soapTextOut');
+  if(!target) return;
+  var obs=new MutationObserver(function(){
+    var txt=target.textContent||'';
+    if(txt.trim().length){
+      renderSoap(txt);
+      if(icdBox){
+        fetch('/api/icd-suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ text: txt })})
+          .then(r=>r.json()).then(j=>{ icdBox.textContent=(j && j.codes && j.codes.length)? j.codes.map(c=>c.code+' — '+c.name).join('\\n') : 'No ICD-10 suggestions.'; })
+          .catch(()=>{ icdBox.textContent='No ICD-10 suggestions.'; });
+      }
+    }
+  });
+  obs.observe(target,{childList:true,characterData:true,subtree:true});
+  var g=document.getElementById('btnGenerate');
+  if(g){ g.addEventListener('click',function(){ setWorking(true); setTimeout(function(){ setWorking(false); }, 120000); }); }
+});
+})();
+
+(function(){if(window.__icdInit)return;window.__icdInit=!0;var i=document.getElementById("complaint");if(!i)return;var t=0,l="",c=null;i.addEventListener("input",function(){var q=i.value.trim();if(q.length<4){l="";return}if(q===l)return;clearTimeout(t);t=setTimeout(function(){l=q;if(c)c.abort();c=new AbortController();fetch("/api/icd-suggest",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:q}),signal:c.signal}).catch(function(){})},450)},{passive:!0})})();
+;(function(){
+  if (window.__ICD_DEBOUNCE_V3__) return; window.__ICD_DEBOUNCE_V3__ = true;
+  var input = document.getElementById("complaint");
+  if (!input) return;
+  var timer = 0, last = "", ctrl = null;
+  input.addEventListener("input", function(){
+    var q = (input.value || "").trim();
+    if (q.length < 4) { last = ""; return; }
+    if (q === last) return;
+    clearTimeout(timer);
+    timer = setTimeout(function(){
+      last = q;
+      try { if (ctrl) ctrl.abort(); } catch(e) {}
+      ctrl = new AbortController();
+      fetch("/api/icd-suggest", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ text: q }),
+        signal: ctrl.signal
+      }).catch(function(){});
+    }, 450);
+
+== public/fix-dropdowns.js (1..200) ==
+(async function () {
+  async function jget(url) {
+    const r = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
+    if (!r.ok) throw new Error("GET " + url + " " + r.status);
+    return r.json();
+  }
+  function setOptions(sel, arr, selected) {
+    if (!sel) return;
+    sel.innerHTML = "";
+    arr.forEach(v => {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = v;
+      if (selected && selected === v) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  async function loadModels() {
+    const sel = document.querySelector("#model");
+    if (!sel) return;
+    try {
+      const j = await jget("/api/models");
+      const list = Array.isArray(j?.models) && j.models.length ? j.models : ["llama3"];
+      setOptions(sel, list, list[0]);
+      const hint = document.querySelector("#modelHint");
+      if (hint) hint.textContent = list.length + " models available";
+    } catch {
+      setOptions(sel, ["llama3"], "llama3");
+      const hint = document.querySelector("#modelHint");
+      if (hint) hint.textContent = "1 model available";
+    }
+  }
+
+  async function loadSpecialties() {
+    const sel = document.querySelector("#specialty");
+    if (!sel) return;
+    try {
+      const j = await jget("/api/specialties");
+      const list = Array.isArray(j?.specialties) ? j.specialties.slice().sort((a,b)=>a.localeCompare(b)) : ["General Practice"];
+      setOptions(sel, list, list[0] || "General Practice");
+      const spec = document.querySelector("#specCount");
+      if (spec) spec.textContent = list.length + " specialties loaded (alphabetical)";
+    } catch {
+      setOptions(sel, ["General Practice"], "General Practice");
+      const spec = document.querySelector("#specCount");
+      if (spec) spec.textContent = "1 specialty loaded";
+    }
+  }
+
+  /* PERSISTENCE v1 */
+  const PREF_KEY='soapUI.prefs.v1';
+  function loadPrefs(){ try{return JSON.parse(localStorage.getItem(PREF_KEY)||'{}')}catch{return{}} }
+  function savePrefs(next){ localStorage.setItem(PREF_KEY, JSON.stringify(Object.assign(loadPrefs(), next||{}))); }
+  function applyPrefs(){
+    const p=loadPrefs();
+    const m=document.querySelector('#model');
+    const sp=document.querySelector('#specialty');
+    const ai=document.querySelector('#allowInference');
+    const icd=document.querySelector('#includeICD');
+    if(m && p.model && Array.from(m.options).some(o=>o.value===p.model)) m.value=p.model;
+    if(sp && p.specialty && Array.from(sp.options).some(o=>o.value===p.specialty)) sp.value=p.specialty;
+    if(ai!=null && typeof p.allowInference==='boolean') ai.checked=p.allowInference;
+    if(icd!=null && typeof p.includeICD==='boolean') icd.checked=p.includeICD;
+  }
+  document.addEventListener("DOMContentLoaded", async () => {
+    await loadModels();
+    await loadSpecialties();
+    applyPrefs();
+    const m=document.querySelector('#model');        if(m)  m.addEventListener('change', ()=>savePrefs({model:m.value}));
+    const sp=document.querySelector('#specialty');   if(sp) sp.addEventListener('change', ()=>savePrefs({specialty:sp.value}));
+    const ai=document.querySelector('#allowInference'); if(ai) ai.addEventListener('change', ()=>savePrefs({allowInference:ai.checked}));
+    const icd=document.querySelector('#includeICD'); if(icd) icd.addEventListener('change', ()=>savePrefs({includeICD:icd.checked}));
+  });
+})();
+
+== src/routes/icd.js (1..200) ==
+import express from "express";
+import { suggestICD, writeICDIndex, buildIndexFromSimpleCSV, loadIndex } from "../services/icd.js";
+
+const router = express.Router();
+
+router.post("/icd-suggest", (req, res) => {
+  const { text = "", limit = 8 } = req.body || {};
+  res.json({ icd: suggestICD({ text, limit }) });
+});
+
+router.get("/icd-count", (req, res) => {
+  const idx = loadIndex();
+  res.json({ count: idx.length });
+});
+
+router.post("/icd-import-csv", (req, res) => {
+  try{
+    const { csv = "", mode = "replace" } = req.body || {};
+    const entries = buildIndexFromSimpleCSV(csv);
+    if (!entries.length) return res.status(400).json({ error: "No valid rows" });
+
+    if (mode === "append"){
+      const current = loadIndex();
+      const seen = new Set(current.map(e => e.code));
+      const merged = [...current];
+      for (const e of entries) if (!seen.has(e.code)) merged.push(e);
+      writeICDIndex(merged);
+      return res.json({ ok: true, mode: "append", added: entries.length, total: merged.length });
+    } else {
+      writeICDIndex(entries);
+      return res.json({ ok: true, mode: "replace", total: entries.length });
+    }
+  } catch (e){
+    return res.status(500).json({ error: "Import failed" });
+  }
+});
+
+export default router;
+
+== recent server.log (last 120 lines) ==
+SOAP Notes app ready at http://127.0.0.1:3002

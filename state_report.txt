@@ -1,0 +1,620 @@
+== meta ==
+Sat Aug 30 17:13:01 PDT 2025
+v22.18.0
+10.9.3
+/Users/jonnadelberg/projects/soap-notes-app
+
+== package.json deps ==
+{"type":"module","dependencies":{"ajv":"^8.17.1","axios":"^1.11.0","body-parser":"^2.2.0","compression":"^1.8.1","cors":"^2.8.5","dotenv":"^17.2.1","express":"^4.21.2","fuse.js":"^7.1.0","helmet":"^8.1.0","morgan":"^1.10.1","openai":"^5.16.0","pdfkit":"^0.13.0"},"devDependencies":null,"scripts":{"start":"node server.js","start:5050":"PORT=5050 node server.js"}}
+
+== server.js head (1..120) ==
+import { apiAuth } from "./src/middleware/auth.js";
+import 'dotenv/config';
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import compression from "compression";
+import morgan from "morgan";
+import path from "path";
+import { fileURLToPath } from "url";
+
+import soapRoutes from "./src/routes/soap.js";
+import healthRoutes from "./src/routes/health.js";
+import icdRoutes from "./src/routes/icd.js";
+import annotatedRoutes from "./src/routes/annotated.js";
+import modelsRoutes from "./src/routes/models.js";
+import streamRoutes from "./src/routes/stream.js";
+import notesRoutes from "./src/routes/notes.js";
+import providersRoutes from "./src/routes/providers.js";
+import exportRoutes from "./src/routes/export.js";
+import todoRoutes from "./src/routes/todo.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const isDev = process.env.NODE_ENV !== "production";
+app.set("trust proxy", 1);
+app.use(helmet());
+app.use(compression({ filter:(req,res)=>{ if(req.path==="/api/generate-soap-stream") return false; return compression.filter(req,res); } }));
+app.use(morgan("tiny"));
+app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
+app.use(express.json({ limit: "1mb" }));
+
+const limiter = rateLimit({ windowMs: 60000, max: 60 });
+app.use("/api", limiter);
+
+function basicAuth(req, res, next) {
+  if (!process.env.BASIC_AUTH_USER) return next();
+  if (req.path === "/health") return next();
+  const header = req.headers.authorization || "";
+  const [type, token] = header.split(" ");
+  if (type === "Basic" && token) {
+    const [u, p] = Buffer.from(token, "base64").toString().split(":");
+    if (u === process.env.BASIC_AUTH_USER && p === process.env.BASIC_AUTH_PASS) return next();
+  }
+  res.set("WWW-Authenticate", 'Basic realm="SOAP Notes"');
+  return res.status(401).json({ error: "Auth required" });
+}
+app.use("/api", apiAuth);
+
+app.use("/api", soapRoutes);
+app.use("/api", healthRoutes);
+app.use("/api", icdRoutes);
+app.use("/api", annotatedRoutes);
+app.use("/api", modelsRoutes);
+app.use("/api", streamRoutes);
+app.use("/api", notesRoutes);
+app.use("/api", providersRoutes);
+app.use("/api", exportRoutes);
+app.use("/api", todoRoutes);
+
+app.use(express.static(path.join(__dirname, "public")));
+app.use("/notes", express.static(path.join(__dirname, "notes")));
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
+== server.js around express.json ==
+import healthRoutes from "./src/routes/health.js";
+import icdRoutes from "./src/routes/icd.js";
+import annotatedRoutes from "./src/routes/annotated.js";
+import modelsRoutes from "./src/routes/models.js";
+import streamRoutes from "./src/routes/stream.js";
+import notesRoutes from "./src/routes/notes.js";
+import providersRoutes from "./src/routes/providers.js";
+import exportRoutes from "./src/routes/export.js";
+import todoRoutes from "./src/routes/todo.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const isDev = process.env.NODE_ENV !== "production";
+app.set("trust proxy", 1);
+app.use(helmet());
+app.use(compression({ filter:(req,res)=>{ if(req.path==="/api/generate-soap-stream") return false; return compression.filter(req,res); } }));
+app.use(morgan("tiny"));
+app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
+app.use(express.json({ limit: "1mb" }));
+
+const limiter = rateLimit({ windowMs: 60000, max: 60 });
+app.use("/api", limiter);
+
+function basicAuth(req, res, next) {
+  if (!process.env.BASIC_AUTH_USER) return next();
+  if (req.path === "/health") return next();
+  const header = req.headers.authorization || "";
+  const [type, token] = header.split(" ");
+  if (type === "Basic" && token) {
+    const [u, p] = Buffer.from(token, "base64").toString().split(":");
+    if (u === process.env.BASIC_AUTH_USER && p === process.env.BASIC_AUTH_PASS) return next();
+  }
+  res.set("WWW-Authenticate", 'Basic realm="SOAP Notes"');
+  return res.status(401).json({ error: "Auth required" });
+}
+app.use("/api", apiAuth);
+
+app.use("/api", soapRoutes);
+app.use("/api", healthRoutes);
+app.use("/api", icdRoutes);
+app.use("/api", annotatedRoutes);
+app.use("/api", modelsRoutes);
+app.use("/api", streamRoutes);
+app.use("/api", notesRoutes);
+app.use("/api", providersRoutes);
+app.use("/api", exportRoutes);
+app.use("/api", todoRoutes);
+
+app.use(express.static(path.join(__dirname, "public")));
+app.use("/notes", express.static(path.join(__dirname, "notes")));
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
+== grep for icd-suggest routes ==
+./state_report.txt:137:== grep for icd-suggest routes ==
+./icd_one_shot.sh:13:  if (req.path !== "/api/icd-suggest") return next();
+./icd_one_shot.sh:45:      fetch("/api/icd-suggest", {
+./icd_fix_and_restart.sh:13:  if (req.path !== "/api/icd-suggest") return next();
+./icd_fix_and_restart.sh:45:      fetch("/api/icd-suggest", {
+./README.md:22:POST /api/icd-suggest  
+./public/app.js.bak.1756598802:187:        fetch('/api/icd-suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ text: txt })})
+./public/app.js.bak.1756598802:199:(function(){if(window.__icdInit)return;window.__icdInit=!0;var i=document.getElementById("complaint");if(!i)return;var t=0,l="",c=null;i.addEventListener("input",function(){var q=i.value.trim();if(q.length<4){l="";return}if(q===l)return;clearTimeout(t);t=setTimeout(function(){l=q;if(c)c.abort();c=new AbortController();fetch("/api/icd-suggest",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:q}),signal:c.signal}).catch(function(){})},450)},{passive:!0})})();
+./public/app.js.bak.1756598802:214:      fetch("/api/icd-suggest", {
+./public/app.js.bak.1756598572:187:        fetch('/api/icd-suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ text: txt })})
+./public/app.js.bak.1756598754:187:        fetch('/api/icd-suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ text: txt })})
+./public/app.js.bak.1756598754:199:(function(){if(window.__icdInit)return;window.__icdInit=!0;var i=document.getElementById("complaint");if(!i)return;var t=0,l="",c=null;i.addEventListener("input",function(){var q=i.value.trim();if(q.length<4){l="";return}if(q===l)return;clearTimeout(t);t=setTimeout(function(){l=q;if(c)c.abort();c=new AbortController();fetch("/api/icd-suggest",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:q}),signal:c.signal}).catch(function(){})},450)},{passive:!0})})();
+./public/app.js.bak.1756515121:219:      const icdResp=await fetch('/api/icd-suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:buf,limit:8})});
+./public/app.js.bak.1756516747:246:      const icdResp=await fetch('/api/icd-suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:buf,limit:8})});
+./public/app.js.bak.1756517216:246:      const icdResp=await fetch('/api/icd-suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:buf,limit:8})});
+./public/app.js:187:        fetch('/api/icd-suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ text: txt })})
+./public/app.js:199:(function(){if(window.__icdInit)return;window.__icdInit=!0;var i=document.getElementById("complaint");if(!i)return;var t=0,l="",c=null;i.addEventListener("input",function(){var q=i.value.trim();if(q.length<4){l="";return}if(q===l)return;clearTimeout(t);t=setTimeout(function(){l=q;if(c)c.abort();c=new AbortController();fetch("/api/icd-suggest",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:q}),signal:c.signal}).catch(function(){})},450)},{passive:!0})})();
+./public/app.js:214:      fetch("/api/icd-suggest", {
+./notes/20250829-174231_geriatrics.json:33:      "const icdResp": "await fetch('/api/icd-suggest'",
+./notes/20250829-174231_geriatrics.json:51:    "Objective": "BP 133/22 mmHg, HR 50 bpm, RR 1/min. No additional objective data provided.\nLabs: const fs=require('fs'), const p='src/routes/notes.js', let s=fs.readFileSync(p, s +=`, const x=String(t||''), const out=document.getElementById('soapTextOut')||document.getElementById('jsonOut'), let cur=null, const m=line.match(/^\\\\s*(Subjective|Objective|Assessment|Plan)\\\\s*:\\\\s*$/i), const status=document.getElementById('status'), const payload=buildPayload(), const r=await fetch('/api/generate-soap-stream', const reader=r.body.getReader(), const dec=new TextDecoder(), let buf='', buf+=dec.decode(value, const icdBox=document.getElementById('icdOut'), const icdResp=await fetch('/api/icd-suggest', const icdJ=await icdResp.json(), const icd=icdJ.icd||[], const parsed=parseSoapText(buf), const saved=await fetch('/api/save-note', const d=document.getElementById('downloads'), var h=document.getElementById('rawText'), const j=json||{}, const S=(j.Subjective||'Not provided'), const O=(j.Objective||'Not provided'), const A=(j.Assessment||'Not provided'), const P=(j.Plan||'Not provided'), PORT=5050 npm start",
+./notes/20250829-174304_geriatrics.json:33:      "const icdResp": "await fetch('/api/icd-suggest'",
+./notes/20250829-174304_geriatrics.json:51:    "Objective": "BP 133/22, HR 50, RR 10\nLabs: const fs=require('fs'), const p='src/routes/notes.js', let s=fs.readFileSync(p, s +=`, const x=String(t||''), const out=document.getElementById('soapTextOut')||document.getElementById('jsonOut'), let cur=null, const m=line.match(/^\\\\s*(Subjective|Objective|Assessment|Plan)\\\\s*:\\\\s*$/i), const status=document.getElementById('status'), const payload=buildPayload(), const r=await fetch('/api/generate-soap-stream', const reader=r.body.getReader(), const dec=new TextDecoder(), let buf='', buf+=dec.decode(value, const icdBox=document.getElementById('icdOut'), const icdResp=await fetch('/api/icd-suggest', const icdJ=await icdResp.json(), const icd=icdJ.icd||[], const parsed=parseSoapText(buf), const saved=await fetch('/api/save-note', const d=document.getElementById('downloads'), var h=document.getElementById('rawText'), const j=json||{}, const S=(j.Subjective||'Not provided'), const O=(j.Objective||'Not provided'), const A=(j.Assessment||'Not provided'), const P=(j.Plan||'Not provided'), PORT=5050 npm start",
+./notes/20250829-174304_geriatrics.txt:6:Labs: const fs=require('fs'), const p='src/routes/notes.js', let s=fs.readFileSync(p, s +=`, const x=String(t||''), const out=document.getElementById('soapTextOut')||document.getElementById('jsonOut'), let cur=null, const m=line.match(/^\\s*(Subjective|Objective|Assessment|Plan)\\s*:\\s*$/i), const status=document.getElementById('status'), const payload=buildPayload(), const r=await fetch('/api/generate-soap-stream', const reader=r.body.getReader(), const dec=new TextDecoder(), let buf='', buf+=dec.decode(value, const icdBox=document.getElementById('icdOut'), const icdResp=await fetch('/api/icd-suggest', const icdJ=await icdResp.json(), const icd=icdJ.icd||[], const parsed=parseSoapText(buf), const saved=await fetch('/api/save-note', const d=document.getElementById('downloads'), var h=document.getElementById('rawText'), const j=json||{}, const S=(j.Subjective||'Not provided'), const O=(j.Objective||'Not provided'), const A=(j.Assessment||'Not provided'), const P=(j.Plan||'Not provided'), PORT=5050 npm start
+./notes/20250829-174231_geriatrics.txt:6:Labs: const fs=require('fs'), const p='src/routes/notes.js', let s=fs.readFileSync(p, s +=`, const x=String(t||''), const out=document.getElementById('soapTextOut')||document.getElementById('jsonOut'), let cur=null, const m=line.match(/^\\s*(Subjective|Objective|Assessment|Plan)\\s*:\\s*$/i), const status=document.getElementById('status'), const payload=buildPayload(), const r=await fetch('/api/generate-soap-stream', const reader=r.body.getReader(), const dec=new TextDecoder(), let buf='', buf+=dec.decode(value, const icdBox=document.getElementById('icdOut'), const icdResp=await fetch('/api/icd-suggest', const icdJ=await icdResp.json(), const icd=icdJ.icd||[], const parsed=parseSoapText(buf), const saved=await fetch('/api/save-note', const d=document.getElementById('downloads'), var h=document.getElementById('rawText'), const j=json||{}, const S=(j.Subjective||'Not provided'), const O=(j.Objective||'Not provided'), const A=(j.Assessment||'Not provided'), const P=(j.Plan||'Not provided'), PORT=5050 npm start
+./fix_icd_nobak_and_restart.sh:14:  s/^\s*app\.use\(\s*"\/api\/icd-suggest"\s*,\s*icdSlow\s*\)\s*;?\n//mg;
+./fix_icd_nobak_and_restart.sh:15:  s/^\s*app\.use\(\s*"\/api\/icd-suggest"\s*,\s*icdLimiter\s*\)\s*;?\n//mg;
+./fix_icd_nobak_and_restart.sh:39:      fetch("/api/icd-suggest", {
+./src/routes/icd.js:6:router.post("/icd-suggest", (req, res) => {
+
+== index.html head (1..120) ==
+cat > public/index.html <<'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SOAP Notes</title>
+
+  <!-- White theme styles (simple, readable) -->
+  <style>
+    .page { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 1100px){ .grid-2 { grid-template-columns: 1fr 1fr; } }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; }
+    .card h3 { margin:0; padding:14px 16px; border-bottom:1px solid #eee; font-size:16px; }
+    .card .body { padding:16px; }
+    .row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+    .row-2 { grid-template-columns:1fr 1fr; }
+    label{ font-size:12px; color:#374151; display:block; margin-bottom:6px; }
+    input[type="text"], textarea, select {
+      width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px;
+      background:#fff; color:#111; font-size:14px;
+    }
+    textarea { min-height:110px; resize:vertical; }
+    .hint { font-size:12px; color:#6b7280; margin-top:6px; }
+    .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+    .button { border-radius:8px; padding:10px 14px; border:1px solid #e5e7eb; cursor:pointer; font-weight:600; }
+    .primary{ background:#e0f2fe; } .accent{ background:#dcfce7; } .warn{ background:#fde68a; } .info{ background:#f3e8ff; }
+    pre#jsonOut { min-height:260px; white-space:pre-wrap; word-break:break-word; }
+    #icdOut { min-height:260px; }
+    #status, #downloads { font-size:12px; color:#374151; }
+    ul,ol,li { list-style:none; margin:0; padding:0; } /* no circles */
+    body { background:#fff; color:#111; margin:0; font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; }
+  </style>
+
+  <!-- Optional extra styles (kept for your versioning) -->
+  <link rel="stylesheet" href="/light.css?v=10" />
+
+  <!-- Dropdown loader (models + specialties) -->
+  <script src="/fix-dropdowns.js?v=10" defer></script>
+</head>
+<body>
+  <div class="page">
+    <h1 style="margin:0 0 10px; font-size:22px; font-weight:700;">SOAP Notes</h1>
+    <div class="hint" id="status"></div>
+
+    <div class="grid grid-2">
+      <!-- LEFT -->
+      <div class="grid">
+        <div class="card">
+          <h3>Header</h3>
+          <div class="body">
+            <div class="row row-2">
+              <div>
+                <label for="patient">Patient</label>
+                <input id="patient" type="text" placeholder="e.g., Jane Doe" />
+              </div>
+              <div>
+                <label for="provider">Clinician</label>
+                <input id="provider" type="text" placeholder="e.g., J. Nadelberg, MD" />
+              </div>
+            </div>
+            <div class="row row-2" style="margin-top:12px;">
+              <div>
+                <label for="clinic">Clinic/Practice (PDF header)</label>
+                <input id="clinic" type="text" placeholder="e.g., Demo Clinic" />
+              </div>
+              <div>
+                <label for="model">Model <span id="modelHint" class="hint"></span></label>
+                <select id="model"></select>
+              </div>
+            </div>
+            <div class="row row-2" style="margin-top:12px;">
+              <div>
+                <label for="specialty">Specialty <span id="specCount" class="hint"></span></label>
+                <select id="specialty"></select>
+              </div>
+              <div>
+                <label>&nbsp;</label>
+                <div style="display:flex; gap:12px; align-items:center;">
+                  <label style="display:flex; gap:6px; align-items:center;">
+                    <input type="checkbox" id="allowInference" /> Allow light inference
+                  </label>
+                  <label style="display:flex; gap:6px; align-items:center;">
+                    <input type="checkbox" id="includeICD" checked /> Include ICD-10 suggestions
+                  </label>
+                </div>
+                <div class="hint">When off, content is only from your inputs.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Chief Complaint / HPI</h3>
+          <div class="body">
+            <textarea id="rawText" placeholder="Free-text note..."></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Past/Relevant History</h3>
+          <div class="body">
+            <textarea id="patientHistory" placeholder="Comorbidities, habits, family hx..."></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Vitals & Labs</h3>
+          <div class="body">
+            <div class="row">
+              <div>
+                <label for="vBP">BP</label>
+                <input id="vBP" type="text" placeholder="e.g., 120/80" />
+              </div>
+              <div>
+                <label for="vHR">HR</label>
+                <input id="vHR" type="text" placeholder="e.g., 72" />
+              </div>
+              <div>
+
+== public/index.html head (1..120) ==
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SOAP Note</title>
+  <link rel="stylesheet" href="/light.css?v=101" />
+  <style>
+    :root { color-scheme: light; }
+    body { background:#fff; color:#111; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    .page { max-width: 1360px; margin: 20px auto; padding: 0 16px; }
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: 1fr; }
+    @media (min-width: 1024px){ .grid-2 { grid-template-columns: 1.15fr 0.85fr; } }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; }
+    .card h3 { margin:0; padding:12px 14px; border-bottom:1px solid #eee; font-size:15px; color:#111; }
+    .card .body { padding:14px; }
+    .row { display:grid; gap:12px; }
+    .row-2 { grid-template-columns: 1fr 1fr; }
+    .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+    @media (max-width: 720px){ .row-2, .row-3 { grid-template-columns: 1fr; } }
+    label { font-size:12px; color:#374151; display:block; margin-bottom:6px; }
+    input[type="text"], textarea, select { width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#111; font-size:14px; }
+    textarea { min-height:110px; resize:vertical; }
+    .hint { font-size:12px; color:#6b7280; }
+    .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+    .button { border-radius:8px; padding:10px 14px; border:1px solid #e5e7eb; cursor:pointer; font-weight:600; background:#fff; }
+    .primary { background:#e0f2fe; }
+    .accent  { background:#dcfce7; }
+    .warn    { background:#fde68a; }
+    .info    { background:#f3e8ff; }
+    pre#soapTextOut { min-height:240px; background:#fff; color:#111; border:1px solid #e5e7eb; border-radius:8px; padding:12px; white-space:pre-wrap; word-break:break-word; margin:0; }
+    #icdOut { min-height:120px; }
+    ul,ol,li { list-style:none; padding:0; margin:0; }
+  textarea#rawText{min-height:560px}
+.sticky-card{position:sticky;top:12px}
+pre#soapTextOut{max-height:66vh;overflow:auto}
+.aside{align-self:start}
+.right-fixed{position:fixed;top:12px;right:16px;width:min(560px,42vw);max-height:calc(100vh - 24px);overflow:auto;display:grid;gap:12px}
+@media (min-width:900px){.page{padding-right:min(560px,42vw)}}
+pre#soapTextOut{max-height:60vh;overflow:auto}
+.rightCol{position:fixed;top:12px;right:16px;width:min(560px,42vw);max-height:calc(100vh - 24px);overflow:auto;display:grid;gap:12px}@media (min-width:900px){.page{padding-right:min(560px,42vw)}}pre#soapTextOut{max-height:60vh;overflow:auto}</style>
+  <script src="/fix-dropdowns.js?v=101" defer></script>
+  <script src="/app.js?v=3002" defer></script>
+<style>.grid-2{grid-template-columns:1.15fr 0.85fr!important}</style></head>
+<body>
+  <div class="page">
+    <div id="status" class="hint"></div>
+    <div class="grid grid-2">
+      <div class="grid">
+        <div class="card sticky-card"><h3>Generated SOAP Note</h3>
+          <div class="body"><div id="soapTextOut" class="soapOut"></div></div>
+        </div><div class="grid">
+        <div class="card">
+          <h3>Patient & Setup</h3>
+          <div class="body">
+            <div class="row row-2">
+              <div><label for="patient">Patient</label><input id="patient" type="text" /></div>
+              <div><label for="provider">Clinician</label><input id="provider" type="text" /></div>
+            </div>
+            <div id="statusLine" class="hint" style="margin:8px 0 0 0"></div>
+<div class="row row-2" style="margin-top:12px;">
+              <div><label for="clinic">Clinic/Practice (PDF header)</label><input id="clinic" type="text" /></div>
+              <div><label for="model">Model <span id="modelHint" class="hint"></span></label><select id="model"></select></div>
+            </div>
+            <div class="row row-2" style="margin-top:12px;">
+              <div><label for="specialty">Specialty <span id="specCount" class="hint"></span></label><select id="specialty"></select></div>
+              <div>
+                <label>&nbsp;</label>
+                <div style="display:flex; gap:12px; align-items:center;">
+                  <label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="allowInference" /> Allow light inference</label>
+                  <label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="includeICD" checked /> Include ICD-10 suggestions</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Chief Complaint / HPI</h3>
+          <div class="body"><textarea id="rawText"></textarea></div>
+        </div>
+        
+          </div>
+        </div>
+        </div>
+      </div>
+      
+        <div class="card">
+          <h3>ICD-10 Suggestions</h3>
+          <div class="body"><div id="icdOut" class="hint"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+== public/app.js head (1..120) ==
+(function(){
+function el(id){return document.getElementById(id)}
+function val(id){const x=el(id);return x?x.value.trim():""}
+function checked(id){const x=el(id);return x?x.checked:false}
+function outEl(){return document.getElementById("soapTextOut")||document.getElementById("jsonOut")}
+
+function parseVitalsFrom(text){
+  const out={}; const T=String(text||"");
+  let m;
+  m=T.match(/\b(?:BP|blood\s*pressure)\s*[:=\s]\s*([0-9]{2,3}\s*[\/-]\s*[0-9]{2,3})\b/i);
+  if(m) out.BP=m[1].replace(/\s+/g,'');
+  m=T.match(/\b(?:HR|pulse)\s*[:=\s]\s*([0-9]{2,3})(?!\d)\b/i);
+  if(m) out.HR=m[1];
+  m=T.match(/\b(?:RR|resp(?:irations)?|resp(?:iratory)?(?:\s*rate)?)\s*[:=\s]\s*([0-9]{1,3})(?!\d)\b/i);
+  if(m) out.RR=m[1];
+  m=T.match(/\b(?:T|temp(?:erature)?)\s*[:=\s]\s*([0-9]{2,3}(?:\.[0-9])?)\s*(?:[FC])?\b/i);
+  if(m) out.Temp=m[1];
+  m=T.match(/\b(?:SpO2|SaO2|O2(?:\s*saturation)?)\s*[:=\s]\s*([0-9]{2,3})\s*%?\b/i);
+  if(m) out.SpO2=m[1]+(/%/.test(m[0])?'':'%');
+  return out;
+}
+
+const VITAL_KEYS=new Set(["BP","BLOOD PRESSURE","HR","PULSE","RR","RESP","RESPIRATIONS","RESPIRATORY RATE","SPO2","SAO2","O2","TEMP","TEMPERATURE"]);
+function parseLabsList(text){
+  const out={}; const T="\n"+String(text||"")+"\n";
+  const re=/(^|\n)\s*([A-Za-z][A-Za-z0-9 /+\-%\.]{1,40})\s*(?::|=|\s)\s*([^\n,;]+)(?=\n|$|,|;)/g;
+  let m;
+  while((m=re.exec(T))){
+    const k=m[2].trim().replace(/\s+/g,' ');
+    if(VITAL_KEYS.has(k.toUpperCase())) continue;
+    const v=m[3].trim();
+    if(k && v) out[k]=v;
+  }
+  return out;
+}
+
+function showNoteText(text){const out=outEl();if(!out)return;out.textContent=text||"No output."}
+function showICD(list){const box=el('icdOut');if(!box)return;const enabled=checked('includeICD');if(!enabled){box.textContent='ICD-10 suggestions disabled.';return;}if(!Array.isArray(list)||!list.length){box.textContent='No suggestions.';return;}box.innerHTML='<ul>'+list.map(x=>'<li><b>'+x.code+'</b> — '+x.term+'</li>').join('')+'</ul>';}
+
+function parseOneBox(t){
+  const out={}; const s=String(t||""); const lines=s.split(/\r?\n/);
+  let mode=''; const labsLines=[]; const imaging=[]; const hpi=[]; const hx=[];
+  for(const line of lines){
+    const L=line.trim();
+    if(!L){mode='';continue;}
+    const m=L.match(/^([A-Za-z][A-Za-z \/&()]+):\s*(.*)$/i);
+    if(m){
+      const key=m[1].toLowerCase(); const val=m[2];
+      if(key==='patient') out.patient=val;
+      else if(key==='clinician'||key==='provider') out.provider=val;
+      else if(key==='clinic') out.clinic=val;
+      else if(key==='specialty') out.specialty=val;
+      else if(key==='inference'||key==='allow inference') out.allowInference=/^(on|true|yes|1)$/i.test(val);
+      else if(key==='icd') out.includeICD=/^(on|true|yes|1)$/i.test(val);
+      else if(key==='vitals'){const v=parseVitalsFrom(val); if(Object.keys(v).length) out.vitals=v;}
+      else if(key==='labs'){mode='labs'; if(val) labsLines.push(val); continue;}
+      else if(key==='imaging'||key==='studies'){mode='imaging'; if(val) imaging.push(val); continue;}
+      else if(key==='hpi'||key==='note'||key==='subjective'){mode='hpi'; if(val) hpi.push(val); continue;}
+      else if(key==='past'||key==='history'||key==='hx'){mode='hx'; if(val) hx.push(val); continue;}
+    } else {
+      if(mode==='labs') labsLines.push(L);
+      else if(mode==='imaging') imaging.push(L);
+      else if(mode==='hpi') hpi.push(line);
+      else if(mode==='hx') hx.push(line);
+    }
+  }
+  const autoVitals=parseVitalsFrom(s);
+  if(Object.keys(autoVitals).length) out.vitals=Object.assign({}, autoVitals, out.vitals||{});
+  const labs=parseLabsList(labsLines.join("\n"));
+  if(Object.keys(labs).length) out.labs=labs;
+  if(imaging.length) out.imaging=imaging;
+  if(hpi.length) out.rawText=hpi.join("\n");
+  if(hx.length) out.patientHistory=hx.join("\n");
+  return out;
+}
+
+function buildPayload(){
+  const oneText = val('rawText');
+  const payload={
+    rawText: oneText,
+    patientHistory: val('patientHistory'),
+    specialty: (el('specialty')?.value)||'General Practice',
+    allowInference: checked('allowInference'),
+    model: (el('model')?.value)||null
+  };
+  const vitals={};
+  if(val('vBP')) vitals.BP=val('vBP');
+  if(val('vHR')) vitals.HR=val('vHR');
+  if(val('vRR')) vitals.RR=val('vRR');
+  if(!Object.keys(vitals).length){Object.assign(vitals, parseVitalsFrom(oneText+"\n"+payload.patientHistory));}
+  if(Object.keys(vitals).length) payload.vitals=vitals;
+
+  let labs={};
+  (String(val('labs')).split(/\r?\n/)).forEach(line=>{const i=line.indexOf("="); if(i>0){const k=line.slice(0,i).trim(); const v=line.slice(i+1).trim(); if(k&&v) labs[k]=v;}});
+  if(!Object.keys(labs).length) labs=parseLabsList(oneText+"\n"+payload.patientHistory);
+  if(Object.keys(labs).length) payload.labs=labs;
+
+  const imaging=(el('imaging')?.value||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if(imaging.length) payload.imaging=imaging;
+
+  if(oneText){
+    const meta=parseOneBox(oneText);
+    if(meta.rawText) payload.rawText=meta.rawText;
+    if(meta.patientHistory) payload.patientHistory=meta.patientHistory;
+    if(meta.specialty) payload.specialty=meta.specialty;
+    if(typeof meta.allowInference==='boolean') payload.allowInference=meta.allowInference;
+    if(meta.vitals) payload.vitals=Object.assign({}, payload.vitals||{}, meta.vitals);
+    if(meta.labs) payload.labs=Object.assign({}, payload.labs||{}, meta.labs);
+    if(meta.imaging) payload.imaging=meta.imaging;
+  }
+  return payload;
+}
+
+function renderSoapFromData(d){
+  const S=d.Subjective||'Not provided';
+  const O=d.Objective||'Not provided';
+  const A=d.Assessment||'Not provided';
+  const P=d.Plan||'Not provided';
+  return 'Subjective:\n'+S+'\n\nObjective:\n'+O+'\n\nAssessment:\n'+A+'\n\nPlan:\n'+P+'\n';
+}
+
+== public/app.js search for debounce markers ==
+201:  if (window.__ICD_DEBOUNCE_V3__) return; window.__ICD_DEBOUNCE_V3__ = true;
+
+== public/icd-debounce.js head (1..120) ==
+
+== fix-dropdowns.js head (1..80) ==
+(async function () {
+  async function jget(url) {
+    const r = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
+    if (!r.ok) throw new Error("GET " + url + " " + r.status);
+    return r.json();
+  }
+  function setOptions(sel, arr, selected) {
+    if (!sel) return;
+    sel.innerHTML = "";
+    arr.forEach(v => {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = v;
+      if (selected && selected === v) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  async function loadModels() {
+    const sel = document.querySelector("#model");
+    if (!sel) return;
+    try {
+      const j = await jget("/api/models");
+      const list = Array.isArray(j?.models) && j.models.length ? j.models : ["llama3"];
+      setOptions(sel, list, list[0]);
+      const hint = document.querySelector("#modelHint");
+      if (hint) hint.textContent = list.length + " models available";
+    } catch {
+      setOptions(sel, ["llama3"], "llama3");
+      const hint = document.querySelector("#modelHint");
+      if (hint) hint.textContent = "1 model available";
+    }
+  }
+
+  async function loadSpecialties() {
+    const sel = document.querySelector("#specialty");
+    if (!sel) return;
+    try {
+      const j = await jget("/api/specialties");
+      const list = Array.isArray(j?.specialties) ? j.specialties.slice().sort((a,b)=>a.localeCompare(b)) : ["General Practice"];
+      setOptions(sel, list, list[0] || "General Practice");
+      const spec = document.querySelector("#specCount");
+      if (spec) spec.textContent = list.length + " specialties loaded (alphabetical)";
+    } catch {
+      setOptions(sel, ["General Practice"], "General Practice");
+      const spec = document.querySelector("#specCount");
+      if (spec) spec.textContent = "1 specialty loaded";
+    }
+  }
+
+  /* PERSISTENCE v1 */
+  const PREF_KEY='soapUI.prefs.v1';
+  function loadPrefs(){ try{return JSON.parse(localStorage.getItem(PREF_KEY)||'{}')}catch{return{}} }
+  function savePrefs(next){ localStorage.setItem(PREF_KEY, JSON.stringify(Object.assign(loadPrefs(), next||{}))); }
+  function applyPrefs(){
+    const p=loadPrefs();
+    const m=document.querySelector('#model');
+    const sp=document.querySelector('#specialty');
+    const ai=document.querySelector('#allowInference');
+    const icd=document.querySelector('#includeICD');
+    if(m && p.model && Array.from(m.options).some(o=>o.value===p.model)) m.value=p.model;
+    if(sp && p.specialty && Array.from(sp.options).some(o=>o.value===p.specialty)) sp.value=p.specialty;
+    if(ai!=null && typeof p.allowInference==='boolean') ai.checked=p.allowInference;
+    if(icd!=null && typeof p.includeICD==='boolean') icd.checked=p.includeICD;
+  }
+  document.addEventListener("DOMContentLoaded", async () => {
+    await loadModels();
+    await loadSpecialties();
+    applyPrefs();
+    const m=document.querySelector('#model');        if(m)  m.addEventListener('change', ()=>savePrefs({model:m.value}));
+    const sp=document.querySelector('#specialty');   if(sp) sp.addEventListener('change', ()=>savePrefs({specialty:sp.value}));
+    const ai=document.querySelector('#allowInference'); if(ai) ai.addEventListener('change', ()=>savePrefs({allowInference:ai.checked}));
+    const icd=document.querySelector('#includeICD'); if(icd) icd.addEventListener('change', ()=>savePrefs({includeICD:icd.checked}));
+  });
+})();
+
+== routes containing generate-soap-json-annotated ==
+./index.html:203:        const r = await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./state_report.txt:590:== routes containing generate-soap-json-annotated ==
+./README.md:16:POST /api/generate-soap-json-annotated  
+./public/app.js.bak.1756598802:132:    const r=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/stream.js.bak.1756506404:77:      const r = await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/app.js.bak.1756591862:157:    const r=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/app.js.bak.1756590727:98:    const r=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/app.js.bak.1756598572:132:    const r=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/app.js.bak.1756598754:132:    const r=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/app.js.bak.1756515121:99:    const icdPromise=fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).catch(()=>null);
+./public/app.js.bak.1756514497:99:    const icdPromise=fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).catch(()=>null);
+./public/app.js.bak.1756514497:203:    const icdPromise=fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).catch(()=>null);
+./public/stream.js.bak.1756504984:77:      const r = await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/app.js.bak.1756513357:99:    const rA=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/app.js.bak.1756513101:100:      const rA=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/app.js.bak.1756507378:102:      const rA=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/stream.js.bak.1756504044:77:      const r = await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/app.js.bak.1756516747:97:    const icdPromise=fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).catch(()=>null);
+./public/app.js.bak.1756516747:163:    const rA=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/stream.js.bak.1756507378:78:      const r = await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/app.js.bak.1756513873:99:    const r=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/ux-patch.js:85:      const r1=await fetch('/api/generate-soap-json-annotated',{
+./public/app.js.bak.1756514207:99:    const icdPromise=fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).catch(()=>null);
+./public/app.js.bak.1756517216:97:    const icdPromise=fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).catch(()=>null);
+./public/app.js.bak.1756517216:163:    const rA=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./public/app.js:132:    const r=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+./src/routes/annotated.js:7:router.post("/generate-soap-json-annotated", async (req, res) => {
+
+== recent log tail ==
+SOAP Notes app ready at http://127.0.0.1:3002
