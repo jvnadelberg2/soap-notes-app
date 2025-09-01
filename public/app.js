@@ -160,3 +160,84 @@ function wire(){
 
 document.addEventListener("DOMContentLoaded",wire);
 })();
+
+document.addEventListener('DOMContentLoaded',function(){
+  var btn=document.getElementById('btnClear'); if(!btn) return;
+  function setVal(id,v){var x=document.getElementById(id); if(!x) return; x.value=v||''; x.dispatchEvent(new Event('input',{bubbles:true}));}
+  function clearOut(id){var x=document.getElementById(id); if(!x) return; x.textContent=''; x.innerHTML='';}
+  btn.onclick=function(){
+    setVal('patient','');
+    setVal('rawText','');
+    setVal('patientHistory','');
+    setVal('labs','');
+    setVal('vBP','');
+    setVal('vHR','');
+    setVal('vRR','');
+    setVal('imaging','');
+    clearOut('soapTextOut');
+    var raw=document.getElementById('rawText'); if(raw) raw.focus();
+  };
+});
+
+
+/* generate-button-only */
+document.addEventListener('DOMContentLoaded',function(){
+  var raw=document.getElementById('rawText');
+  if(raw){
+    raw.addEventListener('keydown',function(e){
+      if(e.key==='Enter' && !e.shiftKey){
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        return;
+      }
+    }, true);
+  }
+  var btn=document.getElementById('btnGenerate');
+  if(!btn || btn.dataset.bound==='1') return;
+  btn.dataset.bound='1';
+  btn.onclick=async function(){
+    var out=document.getElementById('soapTextOut')||document.getElementById('jsonOut');
+    var st=document.getElementById('status'); if(st) st.textContent='Generating...';
+    try{
+      var v=function(id){var x=document.getElementById(id);return x?x.value.trim():''};
+      var c=function(id){var x=document.getElementById(id);return x?!!x.checked:false};
+      var payload={
+        rawText:v('rawText'),
+        patientHistory:v('patientHistory'),
+        specialty:(document.getElementById('specialty')&&document.getElementById('specialty').value)||'General Practice',
+        allowInference:c('allowInference'),
+        model:(document.getElementById('model')&&document.getElementById('model').value)||null
+      };
+      var r=await fetch('/api/soap/json',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
+      var ct=r.headers.get('content-type')||'';
+      if(!r.ok){
+        var errText=await r.text();
+        if(out) out.textContent='Error '+r.status+': '+errText.slice(0,400);
+        if(st) st.textContent='Error';
+        return;
+      }
+      if(ct.includes('application/json')){
+        var d=await r.json();
+        var n=(d&&d.note)?d.note:d;
+        var parts=['Subjective','Objective','Assessment','Plan'];
+        var s=parts.map(function(k){ return n[k]?(''<b>'+k+'</b>'\n\n'+n[k]):'' }).filter(Boolean).join('\n\n');
+        if(out) out.textContent=__normalizeEscapes(s);
+      }else{
+        var t=await r.text();
+        if(out) out.textContent=__normalizeEscapes(t);
+      }
+      if(st) st.textContent='';
+    }catch(e){
+      if(out) out.textContent='Error: '+String(e).slice(0,400);
+      if(st) st.textContent='Error';
+    }
+  };
+});
+function __normalizeEscapes(t){
+  try{
+    if(typeof t!=='string') return t;
+    return t.replace(/\r\n/g,'\n').replace(/\\r
+/g,'\n').replace(/
+/g,'\n');
+  }catch(e){ return t; }
+}

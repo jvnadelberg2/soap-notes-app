@@ -64,11 +64,7 @@ router.post("/export-pdf", async (req, res) => {
       meta = note.meta || {};
       if (!header.specialty && note.specialty) header.specialty = note.specialty;
       if (!header.specialty && meta.specialty) header.specialty = meta.specialty;
-    } else if (data) {
-      soap = data;
-    } else {
-      return res.status(400).json({ error: "Provide note id or data" });
-    }
+    } else if (data) { soap = data; } else if (typeof (req.body && req.body.soap) === "string" && req.body.soap.length > 0) { soap = { Subjective: req.body.soap, Objective: "", Assessment: "", Plan: "" }; } else { return res.status(400).json({ error: "Provide note id or data" }); }
 
     const base = id || `note_${Date.now()}`;
     const outPath = path.resolve(__dirname, "../../notes", `${base}.pdf`);
