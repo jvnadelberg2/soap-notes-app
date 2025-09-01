@@ -31,9 +31,19 @@
     #icdOut{min-height:120px}
   </style>
 
-  <script src="/fix-dropdowns.js?v=101" defer></script>
-  <script src="/app.js?v=9921" defer></script>
+  <script src="/fix-dropdowns.js?v=9101" defer></script>
+  <script src="/app.js?v=1001" defer></script>
   <script src="/icd-fix.js" defer></script>
+
+<style id="box-sizing-fix">
+  /* Ensure inputs/textarea/select don't overflow their container */
+  input[type=text], textarea, select {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+    display: block;
+  }
+</style>
+
 </head>
 <body>
   <div class="page">
@@ -64,48 +74,21 @@
         <div class="card">
           <h3>Chief Complaint / HPI</h3>
           <div class="body">
-            <textarea id="rawText" placeholder="Type the complaint/HPI. Press Enter to generate (Shift+Enter for newline)."></textarea>
-            <div class="btns">
-              <button id="btnGenerate" class="button primary" type="button">Generate SOAP</button>
-              <button id="btnClear" class="button" type="button">Clear Patient Data</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>Past/Relevant History</h3>
-          <div class="body"><textarea id="patientHistory"></textarea></div>
-        </div>
-
-        <div class="card">
-          <h3>Vitals & Labs</h3>
-          <div class="body">
-            <div class="row row-3">
-              <div><label for="vBP">BP</label><input id="vBP" type="text" /></div>
-              <div><label for="vHR">HR</label><input id="vHR" type="text" /></div>
-              <div><label for="vRR">RR</label><input id="vRR" type="text" /></div>
-            </div>
-            <div style="margin-top:12px;">
-              <label for="labs">Labs (one per line: Key=Value)</label>
-              <textarea id="labs"></textarea>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>Imaging / Studies</h3>
-          <div class="body">
-            <textarea id="imaging"></textarea>
-            <div class="btns">
-              <button id="genStream" class="button info" type="button">Stream (text)</button>
-              <button id="saveNote" class="button accent" type="button">Save Note</button>
-              <button id="exportPdf" class="button warn" type="button">Export PDF</button>
-            </div>
+            <textarea id="rawText" placeholder=""></textarea>
+<div class="btns">
+  <button id="btnGenerate" class="button primary" type="button">Generate SOAP</button>
+  <button id="btnClear" class="button" type="button">Clear Patient Data</button>
+  <button id="genStream" class="button info" type="button">Print</button>
+  <button id="saveNote" class="button accent" type="button">Word Doc</button>
+  <button id="exportPdf" class="button warn" type="button">Export PDF</button>
+</div>
+<div id="belowBtnsData" class="row" style="margin-top:8px"><div class="row row-3"><div><label for="vBP">BP</label><input id="vBP" type="text"/></div><div><label for="vHR">HR</label><input id="vHR" type="text"/></div><div><label for="vRR">RR</label><input id="vRR" type="text"/></div></div><div class="row row-2" style="margin-top:8px"><div><label for="patientHistory">Patient History</label><textarea id="patientHistory"></textarea></div><div><label for="labs">Labs (name=value per line)</label><textarea id="labs"></textarea><label for="imaging" style="margin-top:8px;display:block">Imaging (one study per line)</label><textarea id="imaging"></textarea></div></div></div>
+<div id="underButtonsControls" class="row" style="margin-top:8px;display:flex;gap:12px;align-items:center"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="toggleEditable" checked/> Editable</label><button id="btnCopy" class="button" type="button">Copy</button></div>
+            
             <div id="downloads" class="hint" style="margin-top:8px;"></div>
           </div>
         </div>
       </div>
-
       <div class="grid">
         <div class="card">
           <h3>Generated SOAP Note</h3>
@@ -120,4 +103,33 @@
   </div>
 
   <script src="/persist-ui.js" defer></script>
+  <script id="spec-loader-override">
+  document.addEventListener('DOMContentLoaded',function(){
+    function fill(arr){
+      var sel=document.getElementById('specialty'); if(!sel) return;
+      sel.innerHTML='';
+      (arr||[]).forEach(function(v){
+        v=String(v||'').trim(); if(!v) return;
+        var o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o);
+      });
+      var h=document.getElementById('specCount'); if(h) h.textContent='('+sel.options.length+' loaded)';
+    }
+    function load(){
+      fetch('/disciplines.json').then(function(r){return r.json()}).then(function(d){
+        var list=Array.isArray(d)?d:(d&&Array.isArray(d.items)?d.items:(d&&Array.isArray(d.disciplines)?d.disciplines:[]));
+        list=Array.from(new Set((list||[]).map(function(x){return String(x||'').trim()}).filter(Boolean))).sort(function(a,b){return a.localeCompare(b)});
+        if(!list.length) list=['General Practice','Family Medicine','Internal Medicine'];
+        fill(list);
+      }).catch(function(){
+        fill(['General Practice','Family Medicine','Internal Medicine']);
+      });
+    }
+    load(); setTimeout(load,0);
+  });
+  </script>
+  <script src="/generate-stable.js?v=1" defer></script>
+  <script src="/clear-stable.js?v=1" defer></script>
+  <script src="/actions-stable.js?v=7001" defer></script>
+
+<script src="/ui-below-buttons.js?v=18" defer></script>
 </body></html>
