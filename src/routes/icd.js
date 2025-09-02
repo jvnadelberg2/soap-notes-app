@@ -1,22 +1,9 @@
 import express from "express";
-import { suggestICD, writeICDIndex, buildIndexFromSimpleCSV, loadIndex } from "../services/icd.js";
 
 const router = express.Router();
-
-router.post("/icd-suggest", (req, res) => {
-  const { text = "", limit = 8 } = req.body || {};
-  res.json({ icd: suggestICD({ text, limit }) });
 });
-
-router.get("/icd-count", (req, res) => {
-  const idx = loadIndex();
   res.json({ count: idx.length });
 });
-
-router.post("/icd-import-csv", (req, res) => {
-  try{
-    const { csv = "", mode = "replace" } = req.body || {};
-    const entries = buildIndexFromSimpleCSV(csv);
     if (!entries.length) return res.status(400).json({ error: "No valid rows" });
 
     if (mode === "append"){

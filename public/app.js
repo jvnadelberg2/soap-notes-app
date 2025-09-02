@@ -82,10 +82,7 @@ function showNoteText(t){
   out.style.overflowWrap="anywhere";
 }
 
-function showICD(list){
   var box=el("icdOut"); if(!box) return;
-  var enabled=checked("includeICD");
-  if(!enabled){ box.textContent="ICD-10 suggestions disabled."; return; }
   if(!Array.isArray(list)||!list.length){ box.textContent="No suggestions."; return; }
   box.innerHTML="<ul>"+list.map(function(x){return "<li><b>"+x.code+"</b> — "+x.term+"</li>"}).join("")+"</ul>";
 }
@@ -104,7 +101,6 @@ async function generateOnce(){
 
     var rA=await fetch("/api/generate-soap-json-annotated",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     var jA=await rA.json();
-    showICD(jA.icd||[]);
   }catch(e){
     showNoteText("Error: "+(e&&e.message?e.message:String(e)));
   }finally{

@@ -1,0 +1,6 @@
+public/index.html.bak.1756506404:95:                    <input type="checkbox" id="includeICD" checked /> Include ICD-10 suggestions
+public/index.html.bak.1756516469:62:                  <label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="includeICD" checked /> Include ICD-10 suggestions</label>
+public/index.html:68:                <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="includeICD" checked/> Include ICD-10 suggestions</label>
+public/index.html.bak.1756504984:95:                    <input type="checkbox" id="includeICD" checked /> Include ICD-10 suggestions
+public/persist-ui.js:83:    persistCheckbox('includeICD');
+public/index.html.bak.1756516747:61:                  <label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="includeICD" checked /> Include ICD-10 suggestions</label>
