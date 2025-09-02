@@ -72,9 +72,23 @@ router.post("/export-pdf", async function(req, res){
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${(meta.title||"soap-note").replace(/[^A-Za-z0-9._-]+/g,"_")}.pdf"`);
 
+
     const stream = new PassThrough();
     const doc = new PDFDocument({ size: "LETTER", margin: 50, autoFirstPage: true });
     doc.pipe(stream);
+router.post("/export-pdf", async (req, res) => {
+  try {
+    const { id = null, header = {}, data = null } = req.body || {};
+    let soap = null;
+    let meta = {};
+
+    if (id) {
+      const note = loadNoteJson(id);
+      soap = note.soap || note.data || note;
+      meta = note.meta || {};
+      if (!header.specialty && note.specialty) header.specialty = note.specialty;
+      if (!header.specialty && meta.specialty) header.specialty = meta.specialty;
+    } else if (data) { soap = data; } else if (typeof (req.body && req.body.soap) === "string" && req.body.soap.length > 0) { soap = { Subjective: req.body.soap, Objective: "", Assessment: "", Plan: "" }; } else { return res.status(400).json({ error: "Provide note id or data" }); }
 
     drawHeader(doc, meta);
     writeSoap(doc, soap);
