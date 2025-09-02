@@ -27,7 +27,6 @@ cat > public/index.html <<'EOF'
     .button { border-radius:8px; padding:10px 14px; border:1px solid #e5e7eb; cursor:pointer; font-weight:600; }
     .primary{ background:#e0f2fe; } .accent{ background:#dcfce7; } .warn{ background:#fde68a; } .info{ background:#f3e8ff; }
     pre#jsonOut { min-height:260px; white-space:pre-wrap; word-break:break-word; }
-    #icdOut { min-height:260px; }
     #status, #downloads { font-size:12px; color:#374151; }
     ul,ol,li { list-style:none; margin:0; padding:0; } /* no circles */
     body { background:#fff; color:#111; margin:0; font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; }
@@ -82,7 +81,6 @@ cat > public/index.html <<'EOF'
                     <input type="checkbox" id="allowInference" /> Allow light inference
                   </label>
                   <label style="display:flex; gap:6px; align-items:center;">
-                    <input type="checkbox" id="includeICD" checked /> Include ICD-10 suggestions
                   </label>
                 </div>
                 <div class="hint">When off, content is only from your inputs.</div>
@@ -154,9 +152,7 @@ cat > public/index.html <<'EOF'
         </div>
 
         <div class="card">
-          <h3>ICD-10 Suggestions</h3>
           <div class="body">
-            <div id="icdOut" class="hint">Run generation to see suggestions.</div>
           </div>
         </div>
       </div>
@@ -203,13 +199,10 @@ cat > public/index.html <<'EOF'
         const r = await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
         const j = await r.json();
         document.getElementById('jsonOut').textContent = JSON.stringify(j.data || j, null, 2);
-        if(document.getElementById('includeICD').checked){
           const icd = Array.isArray(j.icd)?j.icd:[];
-          document.getElementById('icdOut').innerHTML = icd.length
             ? '<ul>'+icd.map(x=>`<li><b>${x.code}</b> — ${x.term} <span class="hint">(score ${x.score})</span></li>`).join('')+'</ul>'
             : 'No suggestions.';
         } else {
-          document.getElementById('icdOut').textContent = 'ICD-10 suggestions disabled.';
         }
         setStatus('');
       }catch(e){ setStatus('Error: '+e.message); }
