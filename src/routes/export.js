@@ -1,81 +1,57 @@
 import express from "express";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import PDFDocument from "pdfkit";
-import { PassThrough } from "stream";
 
 const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-function drawHeader(doc, meta){
-  const left = 50;
-  const right = 562;
-  doc.fontSize(16).text(meta.title || "SOAP Note", left, 40, { width: right-left, align: "left" });
-  doc.moveDown(0.3);
-  doc.fontSize(10);
-  doc.text(`Provider: ${meta.provider || ""}`, left, 68);
-  doc.text(`Clinic: ${meta.clinic || ""}`, left, 82);
-  doc.text(`Discipline: ${meta.discipline || ""}`, left, 96);
-  doc.text(`Patient: ${meta.patientName || ""}`, 320, 68);
-  doc.text(`MRN: ${meta.mrn || ""}`, 320, 82);
-  doc.text(`ICD-10: ${meta.icd || ""}`, 320, 96);
-  doc.text(`Date/Time: ${meta.createdAt || ""}`, 320, 110);
-  doc.moveTo(left, 128).lineTo(right,128).strokeColor("#dddddd").stroke();
-  doc.fillColor("black");
+function loadNoteJson(id) {
+  const p = path.resolve(__dirname, "../../notes", `${id}.json`);
+  const raw = fs.readFileSync(p, "utf8");
+  return JSON.parse(raw);
 }
 
-function drawFooter(doc, meta){
-  const left = 50;
-  const right = 562;
-  const bottom = doc.page.height - 40;
-  doc.moveTo(left, bottom-14).lineTo(right, bottom-14).strokeColor("#dddddd").stroke();
-  doc.fontSize(9).fillColor("#444");
-  doc.text(`Provider: ${meta.provider || ""}   Clinic: ${meta.clinic || ""}   Discipline: ${meta.discipline || ""}`, left, bottom-10, { width: right-left, align:"left" });
-  doc.text(`Patient: ${meta.patientName || ""}   MRN: ${meta.mrn || ""}   ICD-10: ${meta.icd || ""}`, left, bottom, { width: right-left, align:"left" });
-  const cur = doc.page.margins ? doc.page.margins.bottom : 72;
-  doc.fillColor("black");
-}
+function writePdf({ header, soap, outPath }) {
+  const doc = new PDFDocument({ margin: 50 });
+  const stream = fs.createWriteStream(outPath);
+  doc.pipe(stream);
 
-function writeSoap(doc, soap){
-  const left = 50;
-  const top = 140;
-  doc.fontSize(12).fillColor("black");
-  const sections = String(soap||"").split(/\n/);
-  let y = top;
-  let boldNext = false;
-  for(let i=0;i<sections.length;i++){
-    const line = sections[i];
-    if(/^Subjective:/i.test(line) || /^Objective:/i.test(line) || /^Assessment:/i.test(line) || /^Plan:/i.test(line)){
-      doc.font("Helvetica-Bold").text(line, left, y, { width: 512 });
-      y = doc.y;
-      doc.font("Helvetica");
-      continue;
-    }
-    doc.text(line, left, y, { width: 512 });
-    y = doc.y;
+  const h = header || {};
+  const s = soap || {};
+
+  doc.fontSize(18).text(h.title || "SOAP Note", { align: "left" });
+  doc.moveDown(0.5);
+  doc.fontSize(10).text(`Date: ${h.date || new Date().toLocaleString()}`);
+  if (h.clinic) doc.text(`Clinic: ${h.clinic}`);
+  if (h.clinician) doc.text(`Clinician: ${h.clinician}`);
+  if (h.patient) doc.text(`Patient: ${h.patient}`);
+  if (h.mrn) doc.text(`MRN: ${h.mrn}`);
+  if (h.dob) doc.text(`DOB: ${h.dob}`);
+  if (h.specialty) doc.text(`Specialty: ${h.specialty}`);
+  doc.moveDown();
+
+  function section(label, text) {
+    doc.fontSize(14).text(label, { underline: true });
+    doc.moveDown(0.2);
+    doc.fontSize(12).text(String(text || "Not provided"), { align: "left" });
+    doc.moveDown();
   }
+
+  section("Subjective", s.Subjective);
+  section("Objective", s.Objective);
+  section("Assessment", s.Assessment);
+  section("Plan", s.Plan);
+
+  doc.end();
+  return new Promise((resolve, reject) => {
+    stream.on("finish", resolve);
+    stream.on("error", reject);
+  });
 }
 
-router.post("/export-pdf", async function(req, res){
-  try{
-    const b = req.body || {};
-    const meta = {
-      title: String(b.title || "SOAP Note"),
-      provider: String(b.provider || ""),
-      clinic: String(b.clinic || ""),
-      discipline: String(b.discipline || ""),
-      patientName: String(b.patientName || ""),
-      mrn: String(b.mrn || ""),
-      icd: String(b.icd || ""),
-      createdAt: String(b.createdAt || ""),
-      modelUsed: String(b.modelUsed || "")
-    };
-    const soap = String(b.soap || "");
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${(meta.title||"soap-note").replace(/[^A-Za-z0-9._-]+/g,"_")}.pdf"`);
-
-
-    const stream = new PassThrough();
-    const doc = new PDFDocument({ size: "LETTER", margin: 50, autoFirstPage: true });
-    doc.pipe(stream);
 router.post("/export-pdf", async (req, res) => {
   try {
     const { id = null, header = {}, data = null } = req.body || {};
@@ -90,63 +66,18 @@ router.post("/export-pdf", async (req, res) => {
       if (!header.specialty && meta.specialty) header.specialty = meta.specialty;
     } else if (data) { soap = data; } else if (typeof (req.body && req.body.soap) === "string" && req.body.soap.length > 0) { soap = { Subjective: req.body.soap, Objective: "", Assessment: "", Plan: "" }; } else { return res.status(400).json({ error: "Provide note id or data" }); }
 
-    drawHeader(doc, meta);
-    writeSoap(doc, soap);
+    const base = id || `note_${Date.now()}`;
+    const outPath = path.resolve(__dirname, "../../notes", `${base}.pdf`);
+    await writePdf({ header, soap, outPath });
 
-    doc.on("pageAdded", function(){
-      drawHeader(doc, meta);
+    return res.json({
+      ok: true,
+      id: base,
+      file: `/notes/${base}.pdf`
     });
-
-    const addFooter = function(){
-      drawFooter(doc, meta);
-    };
-
-    addFooter();
-    doc.end();
-    stream.on("error", function(){});
-    stream.pipe(res);
-  }catch(e){
-    res.status(500).type("text/plain").send("PDF error");
-  }
-});
-
-function rtfEscape(s){
-  return String(s||"").replace(/[\\{}]/g, function(m){ return "\\"+m }).replace(/\n/g, "\\par\n");
-}
-
-router.post("/save-note", async function(req, res){
-  try{
-    const b = req.body || {};
-    const title = String(b.title || "SOAP Note");
-    const meta = [
-      `Provider: ${b.provider||""}`,
-      `Clinic: ${b.clinic||""}`,
-      `Discipline: ${b.discipline||""}`,
-      `Patient: ${b.patientName||""}`,
-      `MRN: ${b.mrn||""}`,
-      `ICD-10: ${b.icd||""}`,
-      `Date/Time: ${b.createdAt||""}`,
-      `Model: ${b.modelUsed||""}`
-    ].join("\n");
-    const soap = String(b.soap || "");
-    const rtf = [
-      "{\\rtf1\\ansi\\deff0",
-      "{\\fonttbl{\\f0 Helvetica;}}",
-      "\\fs24 ",
-      rtfEscape(title), "\\par\\par",
-      rtfEscape(meta), "\\par\\par",
-      rtfEscape(soap),
-      "}"
-    ].join("");
-
-    const fname = `${title.replace(/[^A-Za-z0-9._-]+/g,"_")}.rtf`;
-    res.setHeader("Content-Type", "application/rtf");
-    res.setHeader("Content-Disposition", `attachment; filename="${fname}"`);
-    res.send(rtf);
-  }catch(e){
-    res.status(500).json({ ok:false });
+  } catch (e) {
+    return res.status(500).json({ error: "Export failed" });
   }
 });
 
 export default router;
-
