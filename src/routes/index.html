@@ -2,7 +2,7 @@
 <head>
   <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>SOAP Notes</title>
-  <link rel="stylesheet" href="/light.css?v=102" />
+  <link rel="stylesheet" href="/light.css?v=103" />
   <style>
     :root{color-scheme:light}
     body{background:#fff;color:#111;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
@@ -27,9 +27,6 @@
     #status{font-size:12px;color:#6b7280}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
     .small{font-size:12px}
-    .pill{display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;font-size:12px;color:#374151;background:#fafafa}
-    .flex{display:flex;gap:12px;align-items:center}
-    .mb-8{margin-bottom:8px}
   </style>
 </head>
 <body>
@@ -60,18 +57,18 @@
             </div>
 
             <div class="row" style="margin-top:12px;">
-              <div><label for="note">Freeform Note (we will parse S/O/A/P if present)</label><textarea id="note" class="mono"></textarea></div>
+              <div><label for="note">Complaint / HPI</label><textarea id="note" class="mono"></textarea></div>
             </div>
 
             <div class="row row-2" style="margin-top:12px;">
               <div>
                 <label for="history">Patient History</label>
                 <textarea id="history" class="mono small"></textarea>
+                <div class="small hint">Leave blank to auto-parse when possible.</div>
               </div>
               <div>
                 <label for="vitals">Vitals (key=value per line)</label>
                 <textarea id="vitals" class="mono small"></textarea>
-                <div class="small hint">Leave blank to auto-parse when possible.</div>
               </div>
             </div>
 
@@ -87,14 +84,14 @@
             </div>
 
             <div class="actions" style="margin-top:14px">
-              <button id="genText" type="button">Generate Text</button>
+              <button id="genText" type="button">Generate Note</button>
               <button id="exportPdf" type="button" class="secondary">Export PDF</button>
               <button id="saveNote" type="button" class="secondary">Save</button>
             </div>
           </div>
         </div>
 
-        <!-- Model & Mode moved to BOTTOM LEFT -->
+        <!-- Model & Mode at BOTTOM LEFT -->
         <div class="card" style="margin-top:16px;">
           <h3>Model &amp; Mode</h3>
           <div class="body">
@@ -132,7 +129,7 @@
     </div>
   </div>
 
-  <script src="/app.js"></script>
+  <script src="/app.js?v=3"></script>
 </body>
 </html>
 
