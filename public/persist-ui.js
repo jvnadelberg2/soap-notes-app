@@ -80,7 +80,6 @@
     persistSelect('model');
     persistSelect('specialty');
     persistCheckbox('allowInference');
-    persistCheckbox('includeICD');
     persistTextSmart('provider',['provider','clinician']);
     persistTextSmart('clinic',['clinic','practice','clinicName','practiceName']);
   }

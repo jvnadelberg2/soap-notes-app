@@ -81,7 +81,6 @@
       const imaging=(g('imaging')?.value||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
       if(imaging.length) payload.imaging=imaging;
 
-      // Call annotated (ICD etc.)
       const r1=await fetch('/api/generate-soap-json-annotated',{
         method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
       });
@@ -89,7 +88,6 @@
 
       const icdBox=g('icdOut');
       if(icdBox){
-        const list=b('includeICD')?(j1.icd||[]):[];
         icdBox.innerHTML = list.length
           ? '<ul>'+list.map(x=>`<li><b>${x.code}</b> — ${x.term} <span class="small">(score ${x.score})</span></li>`).join('')+'</ul>'
           : 'No suggestions.';

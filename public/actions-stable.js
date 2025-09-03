@@ -48,7 +48,40 @@ document.addEventListener('DOMContentLoaded',function(){
       allowInference: !!(byId('allowInference')&&byId('allowInference').checked),
       model: (byId('model')&&byId('model').value)||null
     };
-    var r=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+// [inject labs/imaging] -- begin
+(function(p){
+  var labsEl=document.getElementById("labs"),
+      imgEl =document.getElementById("imaging");
+  var labs   = labsEl? String(labsEl.value||"").trim() : "",
+      imaging= imgEl? String(imgEl.value||"").trim(): "";
+  if(labs||imaging){
+    if(labs && !p.labs) p.labs = labs;
+    if(imaging && !p.imaging) p.imaging = imaging;
+
+    // avoid double-append
+    var already=false;
+    ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"]
+      .some(function(k){
+        if(typeof p[k]==="string" && (p[k].indexOf("Labs:")!==-1 || p[k].indexOf("Imaging:")!==-1)){
+          already=true; return true;
+        }
+        return false;
+      });
+
+    if(!already){
+      var parts=[];
+      if(labs)    parts.push("Labs:\\n"+labs);
+      if(imaging) parts.push("Imaging:\\n"+imaging);
+      var block="\\n\\n"+parts.join("\\n\\n");
+      ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"]
+        .forEach(function(k){ if(typeof p[k]==="string"){ p[k]+=block; }});
+    }
+  }
+  return p;
+})(payload);
+// [inject labs/imaging] -- end
+
+    var r=await fetch('/api/generate-soap-json-annotated',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify((function(p){var x=document.getElementById("vBP");if(x){var v=String(x.value||"").trim();p.vitals=p.vitals||{};p.vitals.BP=v;if(!p.bp)p.bp=v;}return p;})(payload))});
     if(!r.ok) throw new Error('annotated '+r.status);
     var j=await r.json();
     return j&&j.data?j.data:null;
