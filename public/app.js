@@ -1,3 +1,128 @@
+// --- Put Patient Complaint + History into SUBJECTIVE (safe wrapper) ---
+(function(){
+  const d=document;
+  const get=(id)=>{ const el=d.getElementById(id); return el?String(('value' in el?el.value:el.textContent)||'').trim():'' };
+  const first=(ids)=>{ for(const id of ids){ const v=get(id); if(v) return v } return '' };
+  const ensureStr=(v)=> typeof v==='string' ? v : (v ? String(v) : '');
+  const setIfEmpty=(o,k,val)=>{ if(val && (o[k]==null || o[k]==='')) o[k]=val };
+  const esc=(s)=> s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+
+  function addToSubjective(p){
+    p = p || {};
+    const complaint = first(['complaint','chiefComplaint','cc']);
+    const history   = first(['patientHistory','hpi','history']);
+
+    let subj = ensureStr(p.Subjective);
+    const addLine = (label,val)=>{
+      if(!val) return;
+      const re = new RegExp(`(^|\\n)\\s*${esc(label)}\\s*:`, 'i');
+      if(!re.test(subj)) subj += (subj?'\n':'') + `${label}: ${val}`;
+    };
+    addLine('Chief Complaint', complaint);
+    addLine('History of Present Illness', history);
+
+    if(subj) p.Subjective = subj;
+
+    // also include discrete fields for the model
+    setIfEmpty(p,'complaint', complaint);
+    setIfEmpty(p,'hpi', history);
+    setIfEmpty(p,'patientHistory', history);
+    return p;
+  }
+
+  if (window.enrichFromUI){
+    const prev = window.enrichFromUI;
+    window.enrichFromUI = (p)=> addToSubjective(prev(p));
+  }else{
+    window.enrichFromUI = (p)=> addToSubjective(p);
+  }
+})();
+
+
+
+
+<script>
+/* Enrich payload from current UI before sending */
+window.enrichFromUI = function enrichFromUI(p){
+  const d = document;
+  const get = (id) => {
+    const el = d.getElementById(id);
+    return el ? String(('value' in el ? el.value : el.textContent) || '').trim() : '';
+  };
+  const firstNonEmpty = (ids) => {
+    for (const id of ids) {
+      const v = get(id);
+      if (v) return v;
+    }
+    return '';
+  };
+  const ensureStr = (v) => (typeof v === 'string' ? v : (v ? String(v) : ''));
+  const ensureObj = (o, k, init) => (o[k] === undefined ? (o[k] = init) : o[k]);
+  const setIfEmpty = (o,k,val) => { if (val && (o[k] == null || o[k] === '')) o[k] = val; };
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // --- SUBJECTIVE: Complaint + History ---
+  const complaint = firstNonEmpty(['complaint','chiefComplaint','cc']);
+  const history   = firstNonEmpty(['patientHistory','hpi','history']);
+
+  let subj = ensureStr(p.Subjective);
+  const addLineIfMissing = (label, val) => {
+    if (!val) return;
+    const re = new RegExp(`(^|\\n)\\s*${esc(label)}\\s*:`, 'i');
+    if (!re.test(subj)) subj += (subj ? '\n' : '') + `${label}: ${val}`;
+  };
+  addLineIfMissing('Chief Complaint', complaint);
+  addLineIfMissing('History of Present Illness', history);
+  if (subj) p.Subjective = subj;
+
+  // Back-compat fields (some codepaths may still read these)
+  setIfEmpty(p, 'complaint', complaint);
+  setIfEmpty(p, 'hpi', history);
+
+  // --- OBJECTIVE: vitals, labs, imaging (kept for completeness) ---
+  const vb = get('vBP'), vh = get('vHR'), vr = get('vRR');
+  const labs = get('labs'), imaging = get('imaging');
+
+  if (vb || vh || vr) {
+    const vitals = ensureObj(p, 'vitals', {});
+    if (vb) { vitals.BP = vb; setIfEmpty(p, 'bp', vb); }
+    if (vh) { vitals.HR = vh; setIfEmpty(p, 'hr', vh); }
+    if (vr) { vitals.RR = vr; setIfEmpty(p, 'rr', vr); }
+    let obj = ensureStr(p.Objective);
+    if (!/(^|\n)\s*Vitals:/i.test(obj)) {
+      const lines = [];
+      if (vb) lines.push(`BP: ${vb}`);
+      if (vh) lines.push(`HR: ${vh}`);
+      if (vr) lines.push(`RR: ${vr}`);
+      if (lines.length) {
+        obj += (obj ? '\n\n' : '') + 'Vitals:\n' + lines.join('\n');
+        p.Objective = obj;
+      }
+    }
+  }
+
+  if (labs) {
+    let obj = ensureStr(p.Objective);
+    if (!/(^|\n)\s*Labs:/i.test(obj)) {
+      obj += (obj ? '\n\n' : '') + 'Labs:\n' + labs;
+      p.Objective = obj;
+    }
+    setIfEmpty(p, 'labs', labs);
+  }
+
+  if (imaging) {
+    let obj = ensureStr(p.Objective);
+    if (!/(^|\n)\s*Imaging:/i.test(obj)) {
+      obj += (obj ? '\n\n' : '') + 'Imaging:\n' + imaging;
+      p.Objective = obj;
+    }
+    setIfEmpty(p, 'imaging', imaging);
+  }
+
+  return p;
+};
+</script>
+
 (function(){
 function el(id){return document.getElementById(id)}
 function val(id){var x=el(id);return x?x.value.trim():""}
@@ -94,12 +219,79 @@ async function generateOnce(){
   setStatus("Generating...");
   try{
     var payload=buildPayload();
-    var rT=await fetch("/api/generate-soap",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+// [inject vitals HR/RR/BP] -- begin
+(function(p){
+  var b=document.getElementById("vBP"),
+      h=document.getElementById("vHR"),
+      r=document.getElementById("vRR");
+  var vb=b?String(b.value||"").trim():"",
+      vh=h?String(h.value||"").trim():"",
+      vr=r?String(r.value||"").trim():"";
+  if(vb||vh||vr){
+    p.vitals=p.vitals||{};
+    if(vb){ p.vitals.BP=vb; if(!p.bp)p.bp=vb; }
+    if(vh){ p.vitals.HR=vh; if(!p.hr)p.hr=vh; }
+    if(vr){ p.vitals.RR=vr; if(!p.rr)p.rr=vr; }
+    var lines=[];
+    if(vb) lines.push("BP: "+vb);
+    if(vh) lines.push("HR: "+vh);
+    if(vr) lines.push("RR: "+vr);
+
+    // avoid double-inject if Vitals already appended
+    var already=false;
+    ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"].some(function(k){
+      if(typeof p[k]==="string" && p[k].indexOf("Vitals:")!==-1){ already=true; return true; }
+      return false;
+    });
+    if(!already){
+      var block="\\n\\nVitals:\\n"+lines.join("\\n");
+      ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"].forEach(function(k){
+        if(typeof p[k]==="string"){ p[k]+=block; }
+      });
+    }
+  }
+  return p;
+})(payload);
+// [inject vitals] -- end
+// [inject labs/imaging] -- begin
+(function(p){
+  var labsEl=document.getElementById("labs"),
+      imgEl =document.getElementById("imaging");
+  var labs   = labsEl? String(labsEl.value||"").trim() : "",
+      imaging= imgEl? String(imgEl.value||"").trim(): "";
+  if(labs||imaging){
+    if(labs && !p.labs) p.labs = labs;
+    if(imaging && !p.imaging) p.imaging = imaging;
+
+    // avoid double-append
+    var already=false;
+    ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"]
+      .some(function(k){
+        if(typeof p[k]==="string" && (p[k].indexOf("Labs:")!==-1 || p[k].indexOf("Imaging:")!==-1)){
+          already=true; return true;
+        }
+        return false;
+      });
+
+    if(!already){
+      var parts=[];
+      if(labs)    parts.push("Labs:\\n"+labs);
+      if(imaging) parts.push("Imaging:\\n"+imaging);
+      var block="\\n\\n"+parts.join("\\n\\n");
+      ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"]
+        .forEach(function(k){ if(typeof p[k]==="string"){ p[k]+=block; }});
+    }
+  }
+  return p;
+})(payload);
+// [inject labs/imaging] -- end
+
+    var rT=await fetch("/api/generate-soap",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify((function(p){var x=document.getElementById("vBP");if(x){var v=String(x.value||"").trim();p.vitals=p.vitals||{};p.vitals.BP=v;if(!p.bp)p.bp=v;}return p;})(payload))});
     var jT=await rT.json();
     var noteText=jT&&jT.soapNote||"";
     showNoteText(noteText);
 
-    var rA=await fetch("/api/generate-soap-json-annotated",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    var rA=await fetch("/api/generate-soap-json-annotated",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify((function(p){var x=document.getElementById("vBP");if(x){var v=String(x.value||"").trim();p.vitals=p.vitals||{};p.vitals.BP=v;if(!p.bp)p.bp=v;}return p;})(payload))});
     var jA=await rA.json();
   }catch(e){
     showNoteText("Error: "+(e&&e.message?e.message:String(e)));
@@ -141,8 +333,43 @@ function wire(){
   if(save){
     save.onclick=async function(){
       var payload=buildPayload();
+// [inject vitals HR/RR/BP] -- begin
+(function(p){
+  var b=document.getElementById("vBP"),
+      h=document.getElementById("vHR"),
+      r=document.getElementById("vRR");
+  var vb=b?String(b.value||"").trim():"",
+      vh=h?String(h.value||"").trim():"",
+      vr=r?String(r.value||"").trim():"";
+  if(vb||vh||vr){
+    p.vitals=p.vitals||{};
+    if(vb){ p.vitals.BP=vb; if(!p.bp)p.bp=vb; }
+    if(vh){ p.vitals.HR=vh; if(!p.hr)p.hr=vh; }
+    if(vr){ p.vitals.RR=vr; if(!p.rr)p.rr=vr; }
+    var lines=[];
+    if(vb) lines.push("BP: "+vb);
+    if(vh) lines.push("HR: "+vh);
+    if(vr) lines.push("RR: "+vr);
+
+    // avoid double-inject if Vitals already appended
+    var already=false;
+    ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"].some(function(k){
+      if(typeof p[k]==="string" && p[k].indexOf("Vitals:")!==-1){ already=true; return true; }
+      return false;
+    });
+    if(!already){
+      var block="\\n\\nVitals:\\n"+lines.join("\\n");
+      ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"].forEach(function(k){
+        if(typeof p[k]==="string"){ p[k]+=block; }
+      });
+    }
+  }
+  return p;
+})(payload);
+// [inject vitals] -- end
+
       try{
-        var r=await fetch("/api/save-note",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+        var r=await fetch("/api/save-note",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify((function(p){var x=document.getElementById("vBP");if(x){var v=String(x.value||"").trim();p.vitals=p.vitals||{};p.vitals.BP=v;if(!p.bp)p.bp=v;}return p;})(payload))});
         var j=await r.json();
         var d=el("downloads");
         if(j&&j.ok){ d.innerHTML='<a class="button" href="'+j.files.text+'" target="_blank">Download Text</a> <a class="button" href="'+j.files.json+'" target="_blank">Download Data</a>'; }
@@ -204,7 +431,7 @@ document.addEventListener('DOMContentLoaded',function(){
         allowInference:c('allowInference'),
         model:(document.getElementById('model')&&document.getElementById('model').value)||null
       };
-      var r=await fetch('/api/soap/json',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
+      var r=await fetch('/api/soap/json',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify((function(p){var x=document.getElementById("vBP");if(x){var v=String(x.value||"").trim();p.vitals=p.vitals||{};p.vitals.BP=v;if(!p.bp)p.bp=v;}return p;})(payload))});
       var ct=r.headers.get('content-type')||'';
       if(!r.ok){
         var errText=await r.text();
