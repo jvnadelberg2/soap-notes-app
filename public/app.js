@@ -119,7 +119,49 @@ window.enrichFromUI = function enrichFromUI(p){
     setIfEmpty(p, 'imaging', imaging);
   }
 
-  return p;
+  (function(){try{
+  const d=document;
+  const get=(id)=>{const el=d.getElementById(id);return el?String(('value'in el?el.value:el.textContent)||'').trim():''};
+  const pname=get('patient');
+  const mrn=get('mrn');
+  if(mrn && (p.mrn==null||p.mrn==='')) p.mrn=mrn;
+  let subj = (typeof p.Subjective==='string')?p.Subjective:'';
+  if((pname||mrn) && !/(^|\n)\s*MRN\s*:/i.test(subj)){
+    const head=[pname?('Patient: '+pname):'', mrn?('MRN: '+mrn):''].filter(Boolean).join(' | ');
+    p.Subjective = head + (subj? ('\n'+subj) : '');
+  }
+}catch(e){}})();
+
+/*PI_EXTRA*/
+try{
+  const d=document;
+  const get=(id)=>{const el=d.getElementById(id);return el?String((('value'in el?el.value:el.textContent)||'').trim()):''};
+  const pname=get('patient');
+  const mrn  =get('mrn');
+  const dob  =get('dob');
+  const sex  =get('sex');
+  const icd  =get('icd10');
+  const toAge=(s)=>{if(!s) return ''; const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return ''; const y=+m[1],mo=+m[2]-1,da=+m[3]; const t=new Date(); let a=t.getFullYear()-y; const bd=new Date(t.getFullYear(),mo,da); if(t<bd) a--; return (a>=0&&a<150)?String(a):'';};
+  const age = toAge(dob);
+
+  if(dob && (p.dob==null||p.dob==='')) p.dob=dob;
+  if(age && (p.age==null||p.age==='')) p.age=age;
+  if(sex && (p.sex==null||p.sex==='')) p.sex=sex;
+  if(icd && (p.icd10==null||p.icd10==='')) p.icd10=icd;
+
+  let obj = (typeof p.Objective==='string')?p.Objective:'';
+  if(!/(^|\n)\s*Patient Info:/i.test(obj)){
+    const lines=[];
+    if(pname) lines.push('Name: '+pname);
+    if(mrn)   lines.push('MRN: '+mrn);
+    if(dob)   lines.push('DOB: '+dob);
+    if(age)   lines.push('Age: '+age);
+    if(sex)   lines.push('Sex: '+sex);
+    if(icd)   lines.push('ICD-10: '+icd);
+    if(lines.length){ obj+=(obj?'\n\n':'')+'Patient Info:\n'+lines.join('\n'); p.Objective=obj; }
+  }
+}catch(_e){}
+return p;
 };
 </script>
 

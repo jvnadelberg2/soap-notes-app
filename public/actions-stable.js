@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded',function(){
       try{
         var data = await getAnnotated();
         if(!data){ data = { Subjective: bodyTxt, Objective: '', Assessment: '', Plan: '' }; }
-        var header = { patient:safe(val('patient')), provider:safe(val('provider')), clinic:safe(val('clinic')) };
+        var header = { patient:safe(val('patient')), provider:safe(val('provider')), clinic:safe(val('clinic')) , mrn: safe(val('mrn'))};
         var r = await fetch('/api/export-pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ header: header, data: data })});
         var ct = r.headers.get('content-type')||'';
         if(ct.includes('application/pdf')){
