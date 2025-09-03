@@ -1,3 +1,4 @@
+if (window.__LAYOUT_LOCK__) { return; }
 document.addEventListener('DOMContentLoaded',function(){
   function g(id){return document.getElementById(id)}
   function out(){return g('soapTextOut')||g('jsonOut')}

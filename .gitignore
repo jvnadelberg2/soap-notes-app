@@ -11,3 +11,10 @@ EOF
 git add .gitignore
 git commit -m "Normalize .gitignore; remove conflict markers"
 git push
+.DS_Store
+Archive.zip
+data/
+tmp/
+*.bak.*
+*.B
+public/*.bak.*
