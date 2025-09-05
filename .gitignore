@@ -1,12 +1,32 @@
+cd ~/projects/soap-notes-app
+cat > .gitignore <<'EOF'
 node_modules/
-*.bak.*
+.env
+logs/
+notes/
 *.bak
+_trash-*
+.DS_Store
+EOF
+*.log
+git add .gitignore
+git commit -m "Normalize .gitignore; remove conflict markers"
+git push
+.DS_Store
+Archive.zip
 data/
-exports/
+tmp/
+*.bak.*
+*.B
+public/*.bak.*
+/ory/
+/sna-old/
+/soap-notes-app.zip
+*.pdf
+*.pem
+keys/
+uuid-hash
+notes/
+*.bak*
 server.log
 *.log
-.DS_Store
-.env
-.env.*
-*.pem
-*.key
