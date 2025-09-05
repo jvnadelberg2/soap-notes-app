@@ -22,3 +22,11 @@ public/*.bak.*
 /ory/
 /sna-old/
 /soap-notes-app.zip
+*.pdf
+*.pem
+keys/
+uuid-hash
+notes/
+*.bak*
+server.log
+*.log
