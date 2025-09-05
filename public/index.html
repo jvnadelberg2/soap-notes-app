@@ -89,7 +89,13 @@
             </div>
           </div>
         </div>
-
+ <div class="btns">
+              <button id="btnGenerate" class="button primary" type="button">Generate SOAP</button>
+              <button id="btnClear" class="button" type="button">Clear Patient Data</button>
+              <button id="genStream" class="button info" type="button">Print</button>
+              <button id="saveNote" class="button accent" type="button">Word Doc</button>
+              <button id="exportPdf" class="button warn" type="button">Export PDF</button>
+            </div>
         <div class="card">
           <h3>Patient Information</h3>
           <div class="body">
@@ -113,9 +119,6 @@
                   <option value="X">X</option>
                 </select>
               </label>
-              <label style="flex:2 1 360px">ICD-10 Code
-                <input id="icd10" type="text" style="min-width:240px" />
-              </label>
             </div>
           </div>
         </div>
@@ -124,13 +127,7 @@
           <h3>Chief Complaint / HPI</h3>
           <div class="body">
             <textarea id="rawText"></textarea>
-            <div class="btns">
-              <button id="btnGenerate" class="button primary" type="button">Generate SOAP</button>
-              <button id="btnClear" class="button" type="button">Clear Patient Data</button>
-              <button id="genStream" class="button info" type="button">Print</button>
-              <button id="saveNote" class="button accent" type="button">Word Doc</button>
-              <button id="exportPdf" class="button warn" type="button">Export PDF</button>
-            </div>
+  
             <div id="downloads" class="hint" style="margin-top:8px;"></div>
           </div>
         </div>
