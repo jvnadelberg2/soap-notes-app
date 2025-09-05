@@ -1,437 +1,203 @@
-<!-- BEGIN:ARCH-COMMENT
-File: public/index.html
-Purpose: SOAP / BIRP Notes page in the SOAP/BIRP UI.
-Notes: Contains UI code that interacts with API routes; ensure buttons are disabled during in-flight actions and Draft/Final states are visible.
-END:BEGIN:ARCH-COMMENT -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>SOAP / BIRP Notes</title>
+  <title>SOAP Notes</title>
+
   <link rel="stylesheet" href="/light.css?v=101" />
   <style>
     :root { color-scheme: light }
-    body { background:#fff; color:#111; font-family: Helvetica, Arial, sans-serif }
+    body { background:#fff; color:#111; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif }
     .page { max-width:1360px; margin:20px auto; padding:0 16px }
     .grid { display:grid; gap:16px }
     .grid-2 { grid-template-columns: 1fr }
     @media (min-width:1024px) { .grid-2 { grid-template-columns: 1.15fr 0.85fr } }
-
     .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden }
-    .card > h3 { margin:0; padding:10px 12px; border-bottom:1px solid #e5e7eb; font-size:15px; letter-spacing:.2px }
-    .card > .body { padding:10px 12px }
-
-    .section { margin:8px 0 2px; padding:8px 10px; border:1px solid #f1f5f9; border-radius:8px; background:#fafafa }
-    .section h4 { margin:0 0 6px; font-size:13px; color:#374151; font-weight:700; letter-spacing:.15px }
-
-    .row { display:grid; gap:10px }
-    .cols-2 { grid-template-columns:1fr 1fr }
-    .cols-3 { grid-template-columns:1fr 1fr 1fr }
-    .cols-4 { grid-template-columns:1fr 1fr 1fr 1fr }
-    @media (max-width:1024px){ .cols-4{grid-template-columns:1fr 1fr} }
-    @media (max-width:860px){ .cols-3,.cols-2{ grid-template-columns:1fr } }
-
-    label { display:block; font-size:12px; color:#4b5563; margin:0 0 4px }
+    .card h3 { margin:0; padding:12px 14px; border-bottom:1px solid #eee; font-size:15px; color:#111 }
+    .card .body { padding:14px }
+    .row { display:grid; gap:12px }
+    .row-2 { grid-template-columns:1fr 1fr }
+    .row-3 { grid-template-columns:1fr 1fr 1fr }
+    @media (max-width:720px) { .row-2, .row-3 { grid-template-columns:1fr } }
+    label { font-size:12px; color:#374151; display:block; margin-bottom:6px }
     input[type=text], textarea, select {
-      width:100%; padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#111; font-size:14px;
-      box-sizing:border-box; max-width:100%; display:block; font-family: Helvetica, Arial, sans-serif;
+      width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#111; font-size:14px;
+      box-sizing:border-box; max-width:100%; display:block;
     }
-    textarea { min-height:110px; max-height:240px; overflow:auto; resize:vertical }
-
+    textarea { min-height:110px; resize:vertical }
     .hint { font-size:12px; color:#6b7280 }
-
     .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px }
-    .button { border-radius:8px; padding:10px 14px; border:1px solid #e5e7eb; cursor:pointer; font-weight:600; background:#fff; font-family: Helvetica, Arial, sans-serif }
+    .button { border-radius:8px; padding:10px 14px; border:1px solid #e5e7eb; cursor:pointer; font-weight:600; background:#fff }
     .primary { background:#e0f2fe }
     .accent  { background:#dcfce7 }
     .warn    { background:#fde68a }
     .info    { background:#f3e8ff }
-    .btns .button { min-width:120px }
-
     pre#soapTextOut {
-      min-height:40vh; max-height:75vh; overflow:auto; background:#fff; color:#111;
-      border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px; margin:0;
-      white-space:pre-wrap; word-break:break-word; font-family: Helvetica, Arial, sans-serif;
+      min-height:240px; max-height:66vh; overflow:auto; background:#fff; color:#111;
+      border:1px solid #e5e7eb; border-radius:8px; padding:12px; white-space:pre-wrap; word-break:break-word; margin:0
     }
-
-    #birpInputsCard { display:none; margin-top:-12in }
-    .mode-birp #birpInputsCard { display:block }
-
-    #cardPatientData { display:block }
-    .mode-birp #cardPatientData { visibility:hidden; pointer-events:none }
-
-    #sex { max-width:6ch }
-    #age { display:none }
-
-    #rightCol { gap:10px }
-
-    table { width:100%; border-collapse:collapse }
-    th, td { border:1px solid #e5e7eb; padding:6px; text-align:left; font-size:14px }
   </style>
+
+  <script src="/fix-dropdowns.js?v=9101" defer></script>
+  <script src="/app.js?v=1001" defer></script>
 </head>
 <body>
   <div class="page">
     <div id="status" class="hint"></div>
 
     <div class="grid grid-2">
+
+      <!-- LEFT COLUMN -->
       <div class="grid">
-        <div class="card" id="cardProvider">
-          <h3>Provider & Encounter</h3>
+        <div class="card">
+          <h3>Provider Information</h3>
           <div class="body">
-            <div class="section">
-              <h4>Clinician</h4>
-              <div class="row cols-4">
-                <div><label for="provider">Name</label><input id="provider" type="text" /></div>
-                <div><label for="credentials">Credentials</label>
-                  <select id="credentials">
-                    <option value=""></option>
-                    <option>MD</option><option>DO</option><option>PA-C</option><option>NP</option>
-                    <option>DNP</option><option>RN</option><option>LCSW</option><option>LMFT</option>
-                    <option>PsyD</option><option>PhD</option>
-                  </select>
-                </div>
-                <div><label for="npi">NPI</label><input id="npi" type="text" inputmode="numeric" maxlength="10" /></div>
-                <div><label for="clinic">Clinic</label><input id="clinic" type="text" /></div>
+            <div class="row row-2">
+              <div>
+                <label>Discipline</label>
+                <select id="discipline"><option value=""></option></select>
+              </div>
+              <div>
+                <label>Specialty</label>
+                <select id="specialty"><option value=""></option></select>
               </div>
             </div>
 
-            <div class="section">
-  <h4>Note Settings</h4>
-  <div class="row cols-3">
-    <div>
-      <label for="model">Model</label>
-      <select id="model"><option value=""></option></select>
-    </div>
-    <div>
-      <label for="noteType">Note Type</label>
-      <select id="noteType">
-        <option value="SOAP">SOAP</option>
-        <option value="BIRP">BIRP</option>
-      </select>
-    </div>
-    <div>
-      <label for="specialty">Specialty</label>
-      <select id="specialty"><option value=""></option></select>
-    </div>
-    <div style="display:flex;align-items:end; margin-top:6px;">
-      <label style="display:flex;gap:8px;align-items:center;margin:0">
-        <input id="useInference" type="checkbox" checked /> Use inference
-      </label>
-    </div>
-  </div>
-</div>
-
-
-            <div class="section">
-              <h4>Encounter</h4>
-              <div class="row cols-3">
-                <div><label for="encounter">Date/Time</label><input id="encounter" type="text" placeholder="YYYY-MM-DD HH:mm" /></div>
-                <div><label for="finalizedAt">Finalized Date</label><input id="finalizedAt" type="text" placeholder="YYYY-MM-DD" /></div>
-                <div><label for="encounterType">Type</label>
-                  <select id="encounterType"><option value=""></option><option>Office</option><option>Telehealth</option></select>
-                </div>
+            <div class="row row-2">
+              <div>
+                <label for="clinic">Clinic</label>
+                <input id="clinic" type="text" />
               </div>
-              <div class="row cols-3">
-                <div><label for="telePlatform">Telehealth Platform</label><input id="telePlatform" type="text" placeholder="If telehealth" /></div>
-                <div style="display:flex;align-items:end">
-                  <label style="display:flex;gap:8px;align-items:center;margin:0">
-                    <input id="teleConsent" type="checkbox" /> Telehealth consent
-                  </label>
-                </div>
-                <div></div>
+              <div>
+                <label for="model">Model</label>
+                <select id="model"><option value=""></option></select>
               </div>
             </div>
 
-            <div class="section">
-              <h4>Supervision</h4>
-              <div class="row cols-3">
-                <div><label for="supervisingName">Supervising/Attending</label><input id="supervisingName" type="text" /></div>
-                <div><label for="supervisingNpi">Supervising NPI</label><input id="supervisingNpi" type="text" inputmode="numeric" maxlength="10" /></div>
-                <div style="display:flex;align-items:end">
-                  <label style="display:flex;gap:8px;align-items:center;margin:0">
-                    <input id="cosignRequired" type="checkbox" /> Cosign required
-                  </label>
-                </div>
+            <div class="row row-2">
+              <div style="display:flex;align-items:end">
+                <label style="display:flex;gap:8px;align-items:center;margin:0">
+                  <input id="useInference" type="checkbox" />
+                  Use inference
+                </label>
+              </div>
+              <div>
+                <label for="provider">Clinician</label>
+                <input id="provider" type="text" />
               </div>
             </div>
-
-            <div class="section">
-              <h4>Attestation</h4>
-              <textarea id="attestationText" rows="2"></textarea>
-            </div>
-
-            <div class="btns" id="mainButtons">
-              <button id="btnGenerate" class="button primary" type="button">Generate Note</button>
+          </div>
+        </div>
+  <div class="btns">
+              <button id="btnGenerate" class="button primary" type="button">Generate SOAP</button>
               <button id="btnClear" class="button" type="button">Clear Patient Data</button>
               <button id="genStream" class="button info" type="button">Print</button>
+              <button id="saveNote" class="button accent" type="button">Word Doc</button>
               <button id="exportPdf" class="button warn" type="button">Export PDF</button>
-              <button id="btn-finalize" class="button" type="button">Finalize</button>
+            </div>
+        <div class="card">
+          <h3>Patient Information</h3>
+          <div class="body">
+            <div id="patient-name-mrn-row" style="display:flex;gap:8px;flex-wrap:wrap;">
+              <label style="flex:1 1 300px">Patient Name
+                <input id="patient" type="text" />
+              </label>
+              <label style="flex:1 1 300px">Medical Record Number
+                <input id="mrn" type="text" />
+              </label>
+            </div>
+            <div id="patient-info-extra-row" style="display:flex;gap:8px;flex-wrap:wrap;">
+              <label style="flex:1 1 180px">DOB
+                <input id="dob" type="date" />
+              </label>
+              <label style="flex:0 0 120px">Sex
+                <select id="sex" style="width:64px">
+                  <option value="" selected></option>
+                  <option value="F">F</option>
+                  <option value="M">M</option>
+                  <option value="X">X</option>
+                </select>
+              </label>
+              <!-- ICD-10 controls already removed -->
             </div>
           </div>
         </div>
 
-        <div class="card" id="cardPatientData">
-          <h3>Patient Data</h3>
+        <div class="card">
+          <h3>Chief Complaint / HPI</h3>
           <div class="body">
-            <div class="section">
-              <h4>Identity</h4>
-              <div class="row cols-3">
-                <div><label for="patient">Name</label><input id="patient" type="text" /></div>
-                <div><label for="dob">DOB</label><input id="dob" type="text" /></div>
-                <div><label for="mrn">MRN</label><input id="mrn" type="text" /></div>
-              </div>
-              <div class="row cols-3">
-                <div><label for="sex">Sex</label><input id="sex" type="text" maxlength="1" /></div>
-                <div><label for="patientLanguage">Language</label><input id="patientLanguage" type="text" /></div>
-                <div style="display:flex;gap:10px;align-items:end">
-                  <label style="display:flex;gap:8px;align-items:center;margin:0">
-                    <input id="interpreterUsed" type="checkbox" /> Interpreter used
-                  </label>
-                  <input id="interpreterName" type="text" placeholder="Interpreter name/ID" />
-                </div>
-              </div>
-              <input id="age" type="hidden" />
-            </div>
+            <!-- NEW: split into two fields; IDs provide separate values -->
+            <label for="chiefComplaint">Chief Complaint</label>
+            <textarea id="chiefComplaint"></textarea>
 
-            <div class="section">
-              <h4>Chief Complaint & History</h4>
-              <div class="row">
-                <label for="chiefComplaint">Chief Complaint</label>
-                <textarea id="chiefComplaint"></textarea>
-              </div>
-              <div class="row">
-                <label for="hpi">HPI — History of Presenting Illness</label>
-                <textarea id="hpi"></textarea>
-              </div>
-              <div class="row cols-3">
-                <div><label for="pmh">PMH</label><textarea id="pmh"></textarea></div>
-                <div><label for="fh">FH</label><textarea id="fh"></textarea></div>
-                <div><label for="sh">SH</label><textarea id="sh"></textarea></div>
-              </div>
-              <div class="row">
-                <label for="ros">ROS — Review of Systems</label>
-                <textarea id="ros"></textarea>
-              </div>
-            </div>
+            <label for="rawText">HPI</label>
+            <textarea id="rawText"></textarea>
 
-            <div class="section">
-              <h4>Allergies & Medications</h4>
-              <div class="row cols-2">
-                <div><label for="allergies">Allergies</label><textarea id="allergies" rows="2"></textarea></div>
-                <div><label for="medications">Current Medications</label><textarea id="medications" rows="2"></textarea></div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h4>Billing & Timing</h4>
-              <div class="row cols-3">
-                <div><label for="icd10">ICD-10 Code(s)</label><input id="icd10" type="text" placeholder="Comma-separated" /></div>
-                <div><label for="cptCodes">CPT/HCPCS Code(s)</label><input id="cptCodes" type="text" placeholder="Comma-separated" /></div>
-                <div><label for="cptModifiers">CPT Modifiers</label><input id="cptModifiers" type="text" placeholder="e.g., 95, GT" /></div>
-              </div>
-              <div class="row cols-3">
-                <div><label for="posCode">Place of Service (POS)</label><input id="posCode" type="text" placeholder="e.g., 11, 02" /></div>
-                <div><label for="visitKind">Visit Type</label>
-                  <select id="visitKind"><option value=""></option><option>New</option><option>Established</option></select>
-                </div>
-                <div><label for="procedure">Procedure</label><input id="procedure" type="text" /></div>
-              </div>
-              <div class="row cols-3">
-                <div><label for="timeIn">Time In</label><input id="timeIn" type="text" placeholder="HH:mm" /></div>
-                <div><label for="timeOut">Time Out</label><input id="timeOut" type="text" placeholder="HH:mm" /></div>
-                <div><label for="timeMinutes">Duration (minutes)</label><input id="timeMinutes" type="text" inputmode="numeric" /></div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h4>Vitals</h4>
-              <div class="row cols-3">
-                <div><label for="vBP">BP</label><input id="vBP" type="text" /></div>
-                <div><label for="vHR">HR</label><input id="vHR" type="text" /></div>
-                <div><label for="vRR">RR</label><input id="vRR" type="text" /></div>
-              </div>
-              <div class="row cols-3">
-                <div><label for="vTemp">Temp</label><input id="vTemp" type="text" /></div>
-                <div><label for="vWeight">Weight</label><input id="vWeight" type="text" /></div>
-                <div><label for="vO2Sat">O₂ Sat</label><input id="vO2Sat" type="text" /></div>
-              </div>
-              <div class="row cols-2">
-                <div><label for="height">Height</label><input id="height" type="text" placeholder="in or cm" /></div>
-                <div><label for="painScore">Pain Score</label><input id="painScore" type="text" inputmode="numeric" placeholder="0-10" /></div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h4>Diagnostics & Exam</h4>
-              <div class="row cols-2">
-                <div><label for="diagnostics">Diagnostics — Labs/Imaging/Studies</label><textarea id="diagnostics"></textarea></div>
-                <div><label for="exam">Exam — Physical Examination</label><textarea id="exam"></textarea></div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h4>Orders & Follow-up</h4>
-              <div class="row cols-3">
-                <div><label for="orders">Orders / Referrals / Tests</label><textarea id="orders" rows="2"></textarea></div>
-                <div><label for="followUp">Follow-up</label><textarea id="followUp" rows="2" placeholder="When/where to return, next steps"></textarea></div>
-                <div><label for="disposition">Disposition</label><textarea id="disposition" rows="2" placeholder="Home, ED referral, etc."></textarea></div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h4>Behavioral</h4>
-              <div class="row cols-2">
-                <div><label for="riskLevel">Risk Level</label>
-                  <select id="riskLevel"><option value=""></option><option>None</option><option>Low</option><option>Moderate</option><option>High</option></select>
-                </div>
-                <div style="display:flex;align-items:end">
-                  <label style="display:flex;gap:8px;align-items:center;margin:0">
-                    <input id="safetyPlan" type="checkbox" /> Safety plan present
-                  </label>
-                </div>
-              </div>
-              <div class="row cols-2">
-                <div class="row cols-2">
-                  <div><label for="phq9Total">PHQ-9 Total</label><input id="phq9Total" type="text" inputmode="numeric" /></div>
-                  <div><label for="phq9Date">PHQ-9 Date</label><input id="phq9Date" type="text" placeholder="YYYY-MM-DD" /></div>
-                </div>
-                <div class="row cols-2">
-                  <div><label for="gad7Total">GAD-7 Total</label><input id="gad7Total" type="text" inputmode="numeric" /></div>
-                  <div><label for="gad7Date">GAD-7 Date</label><input id="gad7Date" type="text" placeholder="YYYY-MM-DD" /></div>
-                </div>
-              </div>
-            </div>
-
+            <!-- Original buttons remain in their original place -->
+          
+            <div id="downloads" class="hint" style="margin-top:8px;"></div>
           </div>
         </div>
       </div>
 
-      <div class="grid" id="rightCol">
- <div class="card" id="generatedNoteCard" style="height:4.5in; display:flex; flex-direction:column">
-
-          
-          <h3 id="generatedNoteTitle">SOAP Generation</h3>
+      <!-- RIGHT COLUMN -->
+      <div class="grid">
+        <div class="card">
+          <h3>Generated SOAP Note</h3>
           <div class="body">
             <pre id="soapTextOut" contenteditable="true" tabindex="0"></pre>
+            <div id="underButtonsControls" class="row" style="margin-top:8px;display:flex;gap:12px;align-items:center">
+              <label style="display:flex;gap:6px;align-items:center">
+                <input type="checkbox" id="toggleEditable" checked/> Editable
+              </label>
+            </div>
           </div>
         </div>
 
-        <div class="card" id="birpInputsCard">
-          <h3>BIRP Entry</h3>
+        <div class="card">
+          <h3>Patient Data</h3>
           <div class="body">
-            <div class="row"><label for="birpBehavior">Behavior</label><textarea id="birpBehavior" placeholder="Appearance, affect, mood, speech, SI/HI, orientation, etc."></textarea></div>
-            <div class="row"><label for="birpIntervention">Intervention</label><textarea id="birpIntervention" placeholder="Modalities/techniques used; psychoeducation; homework assigned."></textarea></div>
-            <div class="row"><label for="birpResponse">Response</label><textarea id="birpResponse" placeholder="Client engagement, insight, skills practiced, stated changes."></textarea></div>
-            <div class="row"><label for="birpPlan">Plan</label><textarea id="birpPlan" placeholder="Follow-up, homework, risk plan, reassessment tools (e.g., PHQ-9)."></textarea></div>
+            <div id="belowBtnsData" class="row" style="margin-top:8px">
+              <div class="row">
+                <label>Patient History</label>
+                <textarea id="patientHistory"></textarea>
+              </div>
+              <div class="row row-3">
+                <div><label>BP</label><input id="vBP" type="text" /></div>
+                <div><label>HR</label><input id="vHR" type="text" /></div>
+                <div><label>RR</label><input id="vRR" type="text" /></div>
+              </div>
+              <div class="row row-2">
+                <div>
+                  <label>Labs</label>
+                  <textarea id="labs"></textarea>
+                </div>
+                <div>
+                  <label>Imaging</label>
+                  <textarea id="imaging"></textarea>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <section id="notes-ui" style="max-width:980px;margin:18px auto;">
-    <input type="hidden" id="current-note-uuid" value="">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-      <button id="btn-save-note" type="button">Save</button>
-      <button id="btn-search-notes" type="button">Search</button>
-      <button id="btn-clear-notes" class="button warn" type="button">Delete All</button>
-    </div>
-    <div style="margin:6px 0 10px 0;"><input id="notes-search" type="text" placeholder="Search notes"></div>
-    <table>
-      <thead><tr><th>UUID</th><th>Patient</th><th>Format</th><th>Updated</th><th>Actions</th></tr></thead>
-      <tbody id="notes-tbody"></tbody>
-    </table>
-  </section>
+    </div><!-- /.grid grid-2 -->
+  </div><!-- /.page -->
 
-  <script src="/fix-dropdowns.js?v=9101" defer></script>
-  <script src="/app.js?v=1002" defer></script>
-  <script src="/api-client.js?v=1" defer></script>
-  <script src="/generator-manager.js?v=1"></script>
-  <script src="/soap-generator.js?v=1" defer></script>
-  <script src="/generate-stable.js?v=12" defer></script>
-  <script src="/persist-ui.js?v=3" defer></script>
-  <script src="/ui-below-buttons.js?v=19" defer></script>
-  <script src="/actions-stable.js?v=7006" defer></script>
-  <script src="/clear-patient-info.js?v=2" defer></script>
-  <script src="/new-note-id-reset.js?v=1" defer></script>
-  <script src="/ros-builder.js?v=6" defer></script>
-  <script src="/pdf-export-wire.js" defer></script>
-  <script src="/notes-ui.js" defer></script>
-  <script src="/datetime-now.js" defer></script>
-  <script src="/specialties.js?v=1" defer></script>
- <script src="/soap-specialty-inject.js?v=1" defer></script>
+  <script src="/persist-ui.js" defer></script>
+  <script src="/generate-stable.js?v=1" defer></script>
+  <script src="/clear-stable.js?v=1" defer></script>
+  <script src="/actions-stable.js?v=7001" defer></script>
+  <script src="/ui-below-buttons.js?v=18" defer></script>
+  <script src="discipline-loader.js" defer></script>
+  <script src="/clear-patient-info.js" defer></script>
 
-
-
-  <script defer>
-  (function(){
-    function $(id){ return document.getElementById(id); }
-    function show(el,on){ if(el){ el.style.display = on ? '' : 'none'; } }
-    function applyMode(mode){
-      var isBIRP = mode === 'BIRP';
-      var birpInputsCard  = $('birpInputsCard');
-      var titleEl = $('generatedNoteTitle');
-      show(birpInputsCard, isBIRP);
-      if (titleEl) titleEl.textContent = (isBIRP ? 'BIRP' : 'SOAP') + ' Generation';
-      document.documentElement.classList.toggle('mode-birp', isBIRP);
-      document.documentElement.classList.toggle('mode-soap', !isBIRP);
-    }
-    function init(){
-      var sel = $('noteType');
-      if (!sel) return;
-      applyMode(sel.value);
-      sel.addEventListener('change', function(){ applyMode(sel.value); });
-    }
-    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
-  })();
+  <!-- minimal bridge: expose chiefComplaint and hpi (rawText) separately if scripts read window fields -->
+  <script>
+    window.getChiefComplaint = function(){ return document.getElementById('chiefComplaint')?.value || ''; };
+               window.getHPI = function(){ return document.getElementById('rawText')?.value || ''; };
   </script>
-  
-  <script src="/clear-notes.js?v=1" defer></script>
-  <script src="/save-guard.js?v=2" defer></script>
-  <script src="/search-notes.js?v=1" defer></script>
-  <script src="/specialty-loader.js?v=1" defer></script>
-
-<script>
-(function(){
-  var btn = document.getElementById('exportPdf');
-  if (!btn) return;
-
-  // Guard to avoid re-entrancy when we re-trigger the click
-  var firing = false;
-
-  btn.addEventListener('click', function(e){
-    if (firing) return; // allow the original handler to proceed on the retrigger
-    var hid = document.getElementById('current-note-uuid');
-    var uuid = hid && hid.value ? hid.value.trim() : '';
-
-    if (uuid && typeof window.loadNote === 'function') {
-      // Prevent the original export handler for a moment
-      e.stopPropagation();
-      e.preventDefault();
-
-      var maybePromise = null;
-      try { maybePromise = window.loadNote(uuid); } catch (_) {}
-
-      var retrigger = function(){
-        firing = true;
-        try { btn.click(); } finally { firing = false; }
-      };
-
-      if (maybePromise && typeof maybePromise.then === 'function') {
-        maybePromise.then(retrigger, retrigger);
-      } else {
-        // Give the DOM a tick to update if loadNote is sync
-        setTimeout(retrigger, 0);
-      }
-    }
-    // If no uuid or no loadNote, fall through to existing export behavior
-  }, true); // capturing phase so we run before the original handler
-})();
-</script>
-
-
-
-
-</body></html>
-  <!-- This <script src="/ui-list-tweaks.js?v=1" defer></script>  -->
+</body>
+</html>
