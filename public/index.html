@@ -14,13 +14,13 @@
     .grid-2 { grid-template-columns: 1fr }
     @media (min-width:1024px) { .grid-2 { grid-template-columns: 1.15fr 0.85fr } }
     .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden }
-    .card h3 { margin:0; padding:12px 14px; border-bottom:1px solid #eee; font-size:15px; color:#111 }
-    .card .body { padding:14px }
-    .row { display:grid; gap:12px }
+    .card > h3 { margin:0; padding:12px 14px; border-bottom:1px solid #e5e7eb; font-size:16px }
+    .card > .body { padding:12px 14px }
+    .row { display:grid; gap:10px }
     .row-2 { grid-template-columns:1fr 1fr }
     .row-3 { grid-template-columns:1fr 1fr 1fr }
-    @media (max-width:720px) { .row-2, .row-3 { grid-template-columns:1fr } }
-    label { font-size:12px; color:#374151; display:block; margin-bottom:6px }
+    @media (max-width:860px){ .row-2,.row-3{ grid-template-columns:1fr } }
+
     input[type=text], textarea, select {
       width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#111; font-size:14px;
       box-sizing:border-box; max-width:100%; display:block;
@@ -60,11 +60,17 @@
               </div>
               <div>
                 <label>Specialty</label>
-                <select id="specialty"><option value=""></option></select>
+                <select id="specialty">
+                  <option value="">General Practice</option>
+                </select>
               </div>
             </div>
 
             <div class="row row-2">
+              <div>
+                <label for="provider">Clinician</label>
+                <input id="provider" type="text" />
+              </div>
               <div>
                 <label for="clinic">Clinic</label>
                 <input id="clinic" type="text" />
@@ -89,13 +95,15 @@
             </div>
           </div>
         </div>
-  <div class="btns">
-              <button id="btnGenerate" class="button primary" type="button">Generate SOAP</button>
-              <button id="btnClear" class="button" type="button">Clear Patient Data</button>
-              <button id="genStream" class="button info" type="button">Print</button>
-              <button id="saveNote" class="button accent" type="button">Word Doc</button>
-              <button id="exportPdf" class="button warn" type="button">Export PDF</button>
-            </div>
+
+        <div class="btns">
+          <button id="btnGenerate" class="button primary" type="button">Generate SOAP</button>
+          <button id="btnClear" class="button" type="button">Clear Patient Data</button>
+          <button id="genStream" class="button info" type="button">Print</button>
+          <button id="saveNote" class="button accent" type="button">Word Doc</button>
+          <button id="exportPdf" class="button warn" type="button">Export PDF</button>
+        </div>
+
         <div class="card">
           <h3>Patient Information</h3>
           <div class="body">
@@ -109,17 +117,14 @@
             </div>
             <div id="patient-info-extra-row" style="display:flex;gap:8px;flex-wrap:wrap;">
               <label style="flex:1 1 180px">DOB
-                <input id="dob" type="date" />
+                <input id="dob" type="text" />
               </label>
-              <label style="flex:0 0 120px">Sex
-                <select id="sex" style="width:64px">
-                  <option value="" selected></option>
-                  <option value="F">F</option>
-                  <option value="M">M</option>
-                  <option value="X">X</option>
-                </select>
+              <label style="flex:1 1 180px">Sex
+                <input id="sex" type="text" />
               </label>
-              <!-- ICD-10 controls already removed -->
+              <label style="flex:1 1 180px">Age
+                <input id="age" type="text" />
+              </label>
             </div>
           </div>
         </div>
@@ -135,26 +140,11 @@
             <textarea id="rawText"></textarea>
 
             <!-- Original buttons remain in their original place -->
-          
             <div id="downloads" class="hint" style="margin-top:8px;"></div>
           </div>
         </div>
-      </div>
 
-      <!-- RIGHT COLUMN -->
-      <div class="grid">
-        <div class="card">
-          <h3>Generated SOAP Note</h3>
-          <div class="body">
-            <pre id="soapTextOut" contenteditable="true" tabindex="0"></pre>
-            <div id="underButtonsControls" class="row" style="margin-top:8px;display:flex;gap:12px;align-items:center">
-              <label style="display:flex;gap:6px;align-items:center">
-                <input type="checkbox" id="toggleEditable" checked/> Editable
-              </label>
-            </div>
-          </div>
-        </div>
-
+        <!-- Patient Data moved under Chief Complaint / HPI -->
         <div class="card">
           <h3>Patient Data</h3>
           <div class="body">
@@ -181,6 +171,23 @@
             </div>
           </div>
         </div>
+        <!-- /Patient Data (moved) -->
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="grid">
+        <div class="card">
+          <h3>Generated SOAP Note</h3>
+          <div class="body">
+            <pre id="soapTextOut" contenteditable="true" tabindex="0"></pre>
+            <div id="underButtonsControls" class="row" style="margin-top:8px;display:flex;gap:12px;align-items:center">
+              <label style="display:flex;gap:6px;align-items:center">
+                <input type="checkbox" id="toggleEditable" checked/> Editable
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div><!-- /.grid grid-2 -->
@@ -193,11 +200,6 @@
   <script src="/ui-below-buttons.js?v=18" defer></script>
   <script src="discipline-loader.js" defer></script>
   <script src="/clear-patient-info.js" defer></script>
-
-  <!-- minimal bridge: expose chiefComplaint and hpi (rawText) separately if scripts read window fields -->
-  <script>
-    window.getChiefComplaint = function(){ return document.getElementById('chiefComplaint')?.value || ''; };
-               window.getHPI = function(){ return document.getElementById('rawText')?.value || ''; };
-  </script>
 </body>
 </html>
+
