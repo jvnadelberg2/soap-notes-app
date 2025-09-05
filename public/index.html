@@ -89,7 +89,7 @@
             </div>
           </div>
         </div>
- <div class="btns">
+  <div class="btns">
               <button id="btnGenerate" class="button primary" type="button">Generate SOAP</button>
               <button id="btnClear" class="button" type="button">Clear Patient Data</button>
               <button id="genStream" class="button info" type="button">Print</button>
@@ -119,6 +119,7 @@
                   <option value="X">X</option>
                 </select>
               </label>
+              <!-- ICD-10 controls already removed -->
             </div>
           </div>
         </div>
@@ -126,8 +127,15 @@
         <div class="card">
           <h3>Chief Complaint / HPI</h3>
           <div class="body">
+            <!-- NEW: split into two fields; IDs provide separate values -->
+            <label for="chiefComplaint">Chief Complaint</label>
+            <textarea id="chiefComplaint"></textarea>
+
+            <label for="rawText">HPI</label>
             <textarea id="rawText"></textarea>
-  
+
+            <!-- Original buttons remain in their original place -->
+          
             <div id="downloads" class="hint" style="margin-top:8px;"></div>
           </div>
         </div>
@@ -185,5 +193,11 @@
   <script src="/ui-below-buttons.js?v=18" defer></script>
   <script src="discipline-loader.js" defer></script>
   <script src="/clear-patient-info.js" defer></script>
+
+  <!-- minimal bridge: expose chiefComplaint and hpi (rawText) separately if scripts read window fields -->
+  <script>
+    window.getChiefComplaint = function(){ return document.getElementById('chiefComplaint')?.value || ''; };
+               window.getHPI = function(){ return document.getElementById('rawText')?.value || ''; };
+  </script>
 </body>
 </html>
