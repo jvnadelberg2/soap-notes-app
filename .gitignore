@@ -18,3 +18,6 @@ tmp/
 *.bak.*
 *.B
 public/*.bak.*
+/ory/
+/sna-old/
+/soap-notes-app.zip
