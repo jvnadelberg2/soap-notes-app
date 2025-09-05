@@ -1,3 +1,5 @@
+(function(){
+
 if (window.__LAYOUT_LOCK__) { return; }
 document.addEventListener('DOMContentLoaded',function(){
   function g(id){return document.getElementById(id)}
@@ -153,3 +155,4 @@ document.addEventListener('DOMContentLoaded',function(){
     setTimeout(tryFinish,250);
   });
 });
+})();
