@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded',function(){
   async function getAnnotated(){
     var payload={
       rawText: val('rawText'),
+      chiefComplaint: val('chiefComplaint'),
       patientHistory: val('patientHistory'),
       specialty: (byId('specialty')&&byId('specialty').value)||'General Practice',
       allowInference: !!(byId('allowInference')&&byId('allowInference').checked),
@@ -70,9 +71,9 @@ document.addEventListener('DOMContentLoaded',function(){
 
     if(!already){
       var parts=[];
-      if(labs)    parts.push("Labs:\\n"+labs);
-      if(imaging) parts.push("Imaging:\\n"+imaging);
-      var block="\\n\\n"+parts.join("\\n\\n");
+      if(labs)    parts.push("Labs:\n"+labs);
+      if(imaging) parts.push("Imaging:\n"+imaging);
+      var block="\n\n"+parts.join("\n\n");
       ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"]
         .forEach(function(k){ if(typeof p[k]==="string"){ p[k]+=block; }});
     }
