@@ -39,3 +39,4 @@ document.addEventListener('DOMContentLoaded', () => {
   // Intentionally do NOT attach any click handler to #btnGenerate here.
   // The only code that should handle generation is in generate-stable.js.
 });
+
