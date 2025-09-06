@@ -41,8 +41,6 @@ END:BEGIN:ARCH-COMMENT */
       specialty: $('#specialty')?.value?.trim() || '',
       clinician: $('#provider')?.value?.trim() || '',
       clinic: $('#clinic')?.value?.trim() || '',
-      useInference: !!document.getElementById('useInference')?.checked,
-};
     };
 
     let resp;
@@ -80,6 +78,6 @@ END:BEGIN:ARCH-COMMENT */
   document.addEventListener('DOMContentLoaded', () => {
     toggle();
     if (noteTypeEl) noteTypeEl.addEventListener('change', toggle);
-    if (genBtn) window.__birpBeforeGenerate = onGenerateCapture;; // capture to win when BIRP
+    if (genBtn) genBtn.addEventListener('click', onGenerateCapture, true); // capture to win when BIRP
   });
 })();
