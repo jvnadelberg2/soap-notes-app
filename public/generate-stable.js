@@ -1,106 +1,84 @@
-// public/generate-stable.js
-// Wires the Generate SOAP button to the API and renders the note safely.
-
-(() => {
+(function () {
   const $ = (id) => document.getElementById(id);
 
-  const ids = [
-    'patient','mrn','dob','sex','age',
-    'chiefComplaint','hpi','pmh','fh','sh','ros',
-    'vBP','vHR','vRR','vTemp','vWeight','vO2Sat',
-    'diagnostics','exam',
-    'provider','clinic','discipline','specialty','model','useInference'
-  ];
+  const outEl = $("soapTextOut");
+  const btnGenerate = $("btnGenerate");
+  const useInferenceEl = $("useInference");
 
-  function collectBody() {
-    const b = {};
-    ids.forEach(id => {
-      const el = $(id);
-      if (!el) return;
-      if (el.type === 'checkbox') b[id] = !!el.checked;
-      else b[id] = (el.value ?? '').trim();
+  function getVisible(el) {
+    if (!el) return false;
+    return window.getComputedStyle(el).display !== "none";
+  }
+
+  function getNoteType() {
+    const sel = document.querySelector("[name='noteType']:checked") || $("noteType");
+    if (sel && (sel.value || sel.dataset.value)) return (sel.value || sel.dataset.value).toLowerCase();
+    const birpBox = $("birpFields");
+    return getVisible(birpBox) ? "birp" : "soap";
+  }
+
+  function getSOAPPayload() {
+    return {
+      patient: ($("patient") || {}).value || "",
+      chiefComplaint: ($("chiefComplaint") || {}).value || "",
+      hpi: ($("hpi") || {}).value || "",
+      pmh: ($("pmh") || {}).value || "",
+      fh: ($("fh") || {}).value || "",
+      sh: ($("sh") || {}).value || "",
+      ros: ($("ros") || {}).value || "",
+      vBP: ($("vBP") || {}).value || "",
+      vHR: ($("vHR") || {}).value || "",
+      vRR: ($("vRR") || {}).value || "",
+      vTemp: ($("vTemp") || {}).value || "",
+      vWeight: ($("vWeight") || {}).value || "",
+      vO2Sat: ($("vO2Sat") || {}).value || "",
+      diagnostics: ($("diagnostics") || {}).value || "",
+      exam: ($("exam") || {}).value || "",
+      useInference: !!(useInferenceEl && useInferenceEl.checked)
+    };
+  }
+
+  function getBIRPPayload() {
+    return {
+      behavior: ($("birpBehavior") || {}).value || "",
+      intervention: ($("birpIntervention") || {}).value || "",
+      response: ($("birpResponse") || {}).value || "",
+      plan: ($("birpPlan") || {}).value || "",
+      useInference: !!(useInferenceEl && useInferenceEl.checked)
+    };
+  }
+
+  async function postJSON(url, payload) {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     });
-    return b;
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
   }
 
-  function normalizeObjective(o) {
-    if (!o || !String(o).trim()) return 'No data provided.';
-    const txt = String(o).trim();
-    // Guard against any "all labels but empty values" variants:
-    const looksEmptyVitals = /^BP:\s*,\s*HR:\s*,\s*RR:\s*,\s*Temp:\s*,\s*Weight:\s*,\s*O2\s*Sat:\s*:?$/i.test(txt);
-    if (looksEmptyVitals) return 'No data provided.';
-    return txt;
-  }
+  async function onGenerate() {
+    if (outEl) outEl.textContent = "Generating…";
+    const noteType = getNoteType();
 
-  function renderSOAP(result) {
-    const subj = (result?.subjective && String(result.subjective).trim()) || 'None provided.';
-    const obj  = normalizeObjective(result?.objective);
-    const asmt = (result?.assessment && String(result.assessment).trim()) || 'None provided.';
-    const plan = (result?.plan && String(result.plan).trim()) || 'None provided.';
-
-    const text =
-`Subjective
-${subj}
-
-Objective
-${obj}
-
-Assessment
-${asmt}
-
-Plan
-${plan}`;
-
-    const out = $('soapTextOut');
-    if (out) out.textContent = text;
-  }
-
-  async function generateSOAP() {
-    const btn = $('btnGenerate');
-    const status = $('status');
     try {
-      if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
-      if (status) status.textContent = 'Generating SOAP note…';
+      if (noteType === "birp") {
+        const payload = getBIRPPayload();
+        const data = await postJSON("/api/generate-birp", payload);
+        outEl.textContent = data.text || "";
+        return;
+      }
 
-      const body = collectBody();
-
-      const r = await fetch('/api/generate-soap-json-annotated', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const data = await r.json();
-
-      if (!data?.ok) throw new Error(data?.error || 'Failed to generate');
-
-      renderSOAP(data.result);
-      if (status) status.textContent = 'Done.';
-    } catch (err) {
-      console.error(err);
-      if (status) status.textContent = 'Error generating note.';
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Generate SOAP'; }
+      // default: SOAP
+      const payload = getSOAPPayload();
+      const data = await postJSON("/api/generate-soap-json-annotated", payload);
+      outEl.textContent = data.text || "";
+    } catch (e) {
+      if (outEl) outEl.textContent = `Error: ${e.message || e}`;
+      console.error(e);
     }
   }
 
-  function init() {
-    const btn = $('btnGenerate');
-    if (btn) btn.addEventListener('click', generateSOAP);
-
-    const editableToggle = $('toggleEditable');
-    const out = $('soapTextOut');
-    if (editableToggle && out) {
-      out.contentEditable = !!editableToggle.checked;
-      editableToggle.addEventListener('change', () => {
-        out.contentEditable = !!editableToggle.checked;
-      });
-    }
-  }
-
-  // init on DOM ready (handles defer-loaded script too)
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  if (btnGenerate) btnGenerate.addEventListener("click", onGenerate);
 })();

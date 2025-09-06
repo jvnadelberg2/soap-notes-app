@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>SOAP Notes</title>
+  <title>SOAP / BIRP Notes</title>
 
   <link rel="stylesheet" href="/light.css?v=101" />
   <style>
@@ -13,9 +13,11 @@
     .grid { display:grid; gap:16px }
     .grid-2 { grid-template-columns: 1fr }
     @media (min-width:1024px) { .grid-2 { grid-template-columns: 1.15fr 0.85fr } }
+
     .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden }
     .card > h3 { margin:0; padding:12px 14px; border-bottom:1px solid #e5e7eb; font-size:16px }
     .card > .body { padding:12px 14px }
+
     .row { display:grid; gap:10px }
     .row-2 { grid-template-columns:1fr 1fr }
     .row-3 { grid-template-columns:1fr 1fr 1fr }
@@ -25,14 +27,17 @@
       width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#111; font-size:14px;
       box-sizing:border-box; max-width:100%; display:block; font-family: Helvetica, Arial, sans-serif;
     }
-    textarea { min-height:110px; resize:vertical }
+    textarea { min-height:110px; max-height:240px; overflow:auto; resize:vertical }
+
     .hint { font-size:12px; color:#6b7280 }
+
     .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px }
     .button { border-radius:8px; padding:10px 14px; border:1px solid #e5e7eb; cursor:pointer; font-weight:600; background:#fff; font-family: Helvetica, Arial, sans-serif; }
     .primary { background:#e0f2fe }
     .accent  { background:#dcfce7 }
     .warn    { background:#fde68a }
     .info    { background:#f3e8ff }
+
     pre#soapTextOut {
       min-height:240px; max-height:66vh; overflow:auto; background:#fff; color:#111;
       border:1px solid #e5e7eb; border-radius:8px; padding:12px; margin:0;
@@ -40,15 +45,20 @@
     }
     #soapTextOut .soap-h strong { font-weight:700; }
 
-    /* ROS builder */
-    #rosQuickBuilder { margin-top:8px; border:1px dashed #e5e7eb; border-radius:8px; padding:10px }
-    #rosGrid { display:grid; gap:8px; grid-template-columns: 1fr 1fr; }
-    @media (max-width:860px){ #rosGrid { grid-template-columns:1fr } }
-    .ros-row { display:grid; grid-template-columns: 0.8fr 0.2fr 1fr; gap:8px; align-items:center }
-    .ros-row label { font-size:13px; color:#374151; }
-    .ros-row .negwrap { display:flex; align-items:center; gap:6px }
-    .ros-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
-    .ros-actions .button { padding:8px 10px; font-weight:600 }
+    /* BIRP inputs card toggling */
+    #birpInputsCard { display:none; }
+    .mode-birp #birpInputsCard { display:block; }
+
+    /* Hide SOAP Patient Data in BIRP mode (no bounce for left column) */
+    #cardPatientData { display:block; }
+    .mode-birp #cardPatientData { visibility:hidden; pointer-events:none; }
+
+    /* Slightly wider compact fields */
+    #sex { max-width:6ch; }
+    #age { max-width:8ch; }
+
+    /* Keep button row size consistent */
+    .btns .button { min-width:120px }
   </style>
 </head>
 <body>
@@ -56,8 +66,11 @@
     <div id="status" class="hint"></div>
 
     <div class="grid grid-2">
+      <!-- LEFT COLUMN -->
       <div class="grid">
-        <div class="card">
+
+        <!-- Provider + Buttons + Patient Information -->
+        <div class="card" id="cardProvider">
           <h3>Provider Information</h3>
           <div class="body">
             <div class="row row-2">
@@ -72,6 +85,7 @@
                 </select>
               </div>
             </div>
+
             <div class="row row-2">
               <div>
                 <label for="provider">Clinician</label>
@@ -82,10 +96,18 @@
                 <input id="clinic" type="text" />
               </div>
             </div>
-            <div class="row row-2">
+
+            <div class="row row-3">
               <div>
                 <label for="model">Model</label>
                 <select id="model"><option value=""></option></select>
+              </div>
+              <div>
+                <label for="noteType">Note Type</label>
+                <select id="noteType">
+                  <option value="SOAP">SOAP</option>
+                  <option value="BIRP">BIRP</option>
+                </select>
               </div>
               <div style="display:flex;align-items:end">
                 <label style="display:flex;gap:8px;align-items:center;margin:0">
@@ -94,43 +116,49 @@
                 </label>
               </div>
             </div>
+
+            <!-- Action Buttons (fixed; no bounce) -->
+            <div class="btns" id="mainButtons">
+              <button id="btnGenerate" class="button primary" type="button">Generate Note</button>
+              <button id="btnClear" class="button" type="button">Clear Patient Data</button>
+              <button id="genStream" class="button info" type="button">Print</button>
+              <button id="saveNote" class="button accent" type="button">Word Doc</button>
+              <button id="exportPdf" class="button warn" type="button">Export PDF</button>
+            </div>
+
+            <!-- Patient Information (fixed under buttons) -->
+            <div id="cardPatientInfo" style="margin-top:14px; padding-top:12px; border-top:1px solid #e5e7eb">
+              <div class="row row-2">
+                <div>
+                  <label>Patient Name</label>
+                  <input id="patient" type="text" />
+                </div>
+                <div>
+                  <label>Medical Record Number</label>
+                  <input id="mrn" type="text" />
+                </div>
+              </div>
+
+              <div class="row row-3">
+                <div>
+                  <label>DOB</label>
+                  <input id="dob" type="text" />
+                </div>
+                <div>
+                  <label>Sex</label>
+                  <input id="sex" type="text" maxlength="1" />
+                </div>
+                <div>
+                  <label>Age</label>
+                  <input id="age" type="text" maxlength="3" inputmode="numeric" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="btns">
-          <button id="btnGenerate" class="button primary" type="button">Generate SOAP</button>
-          <button id="btnClear" class="button" type="button">Clear Patient Data</button>
-          <button id="genStream" class="button info" type="button">Print</button>
-          <button id="saveNote" class="button accent" type="button">Word Doc</button>
-          <button id="exportPdf" class="button warn" type="button">Export PDF</button>
-        </div>
-
-        <div class="card">
-          <h3>Patient Information</h3>
-          <div class="body">
-            <div id="patient-name-mrn-row" style="display:flex;gap:8px;flex-wrap:wrap;">
-              <label style="flex:1 1 300px">Patient Name
-                <input id="patient" type="text" />
-              </label>
-              <label style="flex:1 1 300px">Medical Record Number
-                <input id="mrn" type="text" />
-              </label>
-            </div>
-            <div id="patient-info-extra-row" style="display:flex;gap:8px;flex-wrap:wrap;">
-              <label style="flex:1 1 180px">DOB
-                <input id="dob" type="text" />
-              </label>
-              <label style="flex:0 0 auto">Sex
-                <input id="sex" type="text" maxlength="1" inputmode="text" style="width:3ch" />
-              </label>
-              <label style="flex:0 0 auto">Age
-                <input id="age" type="text" maxlength="3" inputmode="numeric" style="width:5ch" />
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
+        <!-- SOAP Patient Data (hidden in BIRP mode via visibility: hidden) -->
+        <div class="card" id="cardPatientData">
           <h3>Patient Data</h3>
           <div class="body">
             <div id="belowBtnsData" class="row" style="margin-top:8px">
@@ -158,91 +186,6 @@
               <div class="row">
                 <label>ROS — Review of Systems</label>
                 <textarea id="ros"></textarea>
-
-                <!-- SINGLE, non-duplicated ROS quick builder -->
-                <div id="rosQuickBuilder" aria-label="ROS Quick Builder">
-                  <div id="rosGrid">
-                    <!-- label | negative? | positives -->
-                    <div class="ros-row" data-sys="Constitutional">
-                      <label>Constitutional</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., fever, chills"/>
-                    </div>
-                    <div class="ros-row" data-sys="HEENT">
-                      <label>HEENT</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., sore throat"/>
-                    </div>
-                    <div class="ros-row" data-sys="Eyes">
-                      <label>Eyes</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., yellowing, discharge"/>
-                    </div>
-                    <div class="ros-row" data-sys="Respiratory">
-                      <label>Respiratory</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., cough, dyspnea"/>
-                    </div>
-                    <div class="ros-row" data-sys="Cardiovascular">
-                      <label>Cardiovascular</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., chest pain"/>
-                    </div>
-                    <div class="ros-row" data-sys="Gastrointestinal">
-                      <label>Gastrointestinal</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., nausea, vomiting"/>
-                    </div>
-                    <div class="ros-row" data-sys="Genitourinary">
-                      <label>Genitourinary</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., dysuria"/>
-                    </div>
-                    <div class="ros-row" data-sys="Musculoskeletal">
-                      <label>Musculoskeletal</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., joint pain"/>
-                    </div>
-                    <div class="ros-row" data-sys="Skin">
-                      <label>Skin</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., rash"/>
-                    </div>
-                    <div class="ros-row" data-sys="Neurological">
-                      <label>Neurological</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., headache, dizziness"/>
-                    </div>
-                    <div class="ros-row" data-sys="Psychiatric">
-                      <label>Psychiatric</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., anxiety, depression"/>
-                    </div>
-                    <div class="ros-row" data-sys="Endocrine">
-                      <label>Endocrine</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., polyuria"/>
-                    </div>
-                    <div class="ros-row" data-sys="Hematologic/Lymphatic">
-                      <label>Hematologic/Lymphatic</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., easy bruising"/>
-                    </div>
-                    <div class="ros-row" data-sys="Allergic/Immunologic">
-                      <label>Allergic/Immunologic</label>
-                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
-                      <input class="ros-pos" type="text" placeholder="e.g., seasonal allergies"/>
-                    </div>
-                  </div>
-
-                  <div class="ros-actions">
-                    <button type="button" id="rosAllNeg" class="button">All Negative</button>
-                    <button type="button" id="rosInsert" class="button">Insert</button>
-                    <button type="button" id="rosReplace" class="button accent">Replace</button>
-                    <button type="button" id="rosClear" class="button warn">Clear Builder</button>
-                  </div>
-                </div>
-                <!-- /ROS quick builder -->
               </div>
 
               <div class="row row-3">
@@ -269,17 +212,37 @@
             </div>
           </div>
         </div>
+
       </div>
 
+      <!-- RIGHT COLUMN -->
       <div class="grid">
         <div class="card">
-          <h3>Generated SOAP Note</h3>
+          <h3 id="generatedNoteTitle">Generated SOAP Note</h3>
           <div class="body">
             <pre id="soapTextOut" contenteditable="true" tabindex="0"></pre>
-            <div id="underButtonsControls" class="row" style="margin-top:8px;display:flex;gap:12px;align-items:center">
-              <label style="display:flex;gap:6px;align-items:center">
-                <input type="checkbox" id="toggleEditable" checked/> Editable
-              </label>
+          </div>
+        </div>
+
+        <!-- BIRP inputs in their own card directly below the generated note -->
+        <div class="card" id="birpInputsCard">
+          <h3>BIRP Entry</h3>
+          <div class="body">
+            <div class="row">
+              <label>Behavior</label>
+              <textarea id="birpBehavior" placeholder="Appearance, affect, mood, speech, SI/HI, orientation, etc."></textarea>
+            </div>
+            <div class="row">
+              <label>Intervention</label>
+              <textarea id="birpIntervention" placeholder="Modalities/techniques used; psychoeducation; homework assigned."></textarea>
+            </div>
+            <div class="row">
+              <label>Response</label>
+              <textarea id="birpResponse" placeholder="Client engagement, insight, skills practiced, stated changes."></textarea>
+            </div>
+            <div class="row">
+              <label>Plan</label>
+              <textarea id="birpPlan" placeholder="Follow-up, homework, risk plan, reassessment tools (e.g., PHQ-9)."></textarea>
             </div>
           </div>
         </div>
@@ -292,15 +255,55 @@
   <script src="/fix-dropdowns.js?v=9101" defer></script>
   <script src="/app.js?v=1002" defer></script>
 
-  <!-- generation & UI -->
+  <!-- split files -->
+  <script src="/api-client.js?v=1" defer></script>
+  <script src="/soap-generator.js?v=1" defer></script>
+
+  <!-- Orchestrator keeps the original name -->
   <script src="/generate-stable.js?v=12" defer></script>
+
+  <!-- persist first, actions last -->
   <script src="/persist-ui.js?v=3" defer></script>
   <script src="/ui-below-buttons.js?v=19" defer></script>
   <script src="/actions-stable.js?v=7006" defer></script>
-
-  <!-- patient/ROS helpers -->
   <script src="/discipline-loader.js" defer></script>
   <script src="/clear-patient-info.js?v=2" defer></script>
   <script src="/ros-builder.js?v=6" defer></script>
+
+  <!-- Inline: SOAP vs BIRP mode toggle -->
+  <script defer>
+  (function () {
+    function $(id){ return document.getElementById(id); }
+    function show(el, on){ if(el){ el.style.display = on ? '' : 'none'; } }
+
+    function applyMode(mode){
+      const isBIRP = mode === 'BIRP';
+      const cardPatientData = $('cardPatientData');
+      const birpInputsCard  = $('birpInputsCard');
+      const titleEl         = $('generatedNoteTitle');
+
+      // Left column: patient data is hidden without reflow via CSS (.mode-birp)
+      // Right column: birp inputs toggle visibility fully (display)
+      show(birpInputsCard, isBIRP);
+      if (titleEl) titleEl.textContent = isBIRP ? 'Generated BIRP Note' : 'Generated SOAP Note';
+
+      document.documentElement.classList.toggle('mode-birp', isBIRP);
+      document.documentElement.classList.toggle('mode-soap', !isBIRP);
+    }
+
+    function init(){
+      const sel = $('noteType');
+      if (!sel) return;
+      applyMode(sel.value);
+      sel.addEventListener('change', function(){ applyMode(sel.value); });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+  </script>
 </body>
 </html>
