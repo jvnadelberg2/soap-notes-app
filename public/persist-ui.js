@@ -1,88 +1,102 @@
-(function(){
-  function q(id){return document.getElementById(id)||document.querySelector('[name="'+id+'"]')}
-  function kSel(id){return 'sel:'+id}
-  function kChk(id){return 'chk:'+id}
-  function kTxt(id){return 'txt:'+id}
+'use strict';
 
-  function getSel(id){try{return localStorage.getItem(kSel(id))||''}catch(e){return''}}
-  function putSel(id,v){try{localStorage.setItem(kSel(id),String(v||''))}catch(e){}}
+const PERSIST_KEY = 'soap_notes_form_v2';
 
-  function getChk(id){try{return localStorage.getItem(kChk(id))}catch(e){return null}}
-  function putChk(id,on){try{localStorage.setItem(kChk(id),on?'1':'0')}catch(e){}}
+function byId(id){ return document.getElementById(id); }
 
-  function getTxt(id){
-    try{
-      var v=localStorage.getItem(kTxt(id));
-      if(v===null && id==='clinic'){
-        var old=localStorage.getItem('txt:practice');
-        if(old!==null){ localStorage.setItem(kTxt('clinic'),old); try{localStorage.removeItem('txt:practice')}catch(e){}; return old; }
-      }
-      if(v===null && id==='provider'){
-        var old2=localStorage.getItem('txt:clinician');
-        if(old2!==null){ localStorage.setItem(kTxt('provider'),old2); try{localStorage.removeItem('txt:clinician')}catch(e){}; return old2; }
-      }
-      return v;
-    }catch(e){ return null }
-  }
-  function putTxt(id,v){
-    try{
-      localStorage.setItem(kTxt(id),String(v||''));
-      if(id==='clinic'){ try{localStorage.removeItem('txt:practice')}catch(e){} }
-      if(id==='provider'){ try{localStorage.removeItem('txt:clinician')}catch(e){} }
-    }catch(e){}
-  }
+function collect(){
+  const pick = id => (byId(id)?.value ?? '');
+  return {
+    provider: pick('provider'),
+    clinic:   pick('clinic'),
+    specialty: pick('specialty'),
+    patient:  pick('patient'),
+    mrn:      pick('mrn'),
+    dob:      pick('dob'),
+    sex:      pick('sex'),
+    age:      pick('age'),
 
-  function applySelect(el,id){
-    if(!el) return false;
-    var want=getSel(id); if(!want) return false;
-    var wantL=String(want).toLowerCase();
-    for(var i=0;i<el.options.length;i++){
-      var v=String(el.options[i].value||'').toLowerCase();
-      if(v===wantL){ el.selectedIndex=i; return true }
-    }
-    return false;
-  }
-  function persistSelect(id){
-    var el=q(id); if(!el) return;
-    applySelect(el,id);
-    var tries=0, t=setInterval(function(){ if(applySelect(el,id)||++tries>=80) clearInterval(t) },50);
-    var mo=new MutationObserver(function(){ applySelect(el,id) });
-    mo.observe(el,{childList:true});
-    el.addEventListener('change',function(){ putSel(id,el.value) },true);
-    if(!getSel(id) && el.value) putSel(id,el.value);
-  }
+    chiefComplaint: pick('chiefComplaint'),
+    hpi:            pick('hpi'),
+    pmh:            pick('pmh'),
+    fh:             pick('fh'),
+    sh:             pick('sh'),
+    ros:            pick('ros'),
 
-  function persistCheckbox(id){
-    var el=q(id); if(!el) return;
-    var v=getChk(id); if(v!==null) el.checked=(v==='1');
-    var tries=0, t=setInterval(function(){ if(++tries>=10){ clearInterval(t); return } var vv=getChk(id); if(vv!==null) el.checked=(vv==='1') },50);
-    el.addEventListener('change',function(){ putChk(id,el.checked) },true);
-    if(getChk(id)===null) putChk(id,el.checked);
-  }
+    vBP: pick('vBP'),
+    vHR: pick('vHR'),
+    vRR: pick('vRR'),
+    vTemp: pick('vTemp'),
+    vWeight: pick('vWeight'),
+    vO2Sat: pick('vO2Sat'),
 
-  function persistTextSmart(storeKey, candidates){
-    var el=null;
-    for(var i=0;i<candidates.length;i++){ el=q(candidates[i]); if(el) break; }
-    if(!el) return;
-    var v=getTxt(storeKey);
-    if(v!==null && el.value!==v) el.value=v;
-    var tries=0, t=setInterval(function(){
-      var vv=getTxt(storeKey);
-      if(vv!==null && el.value!==vv){ el.value=vv; clearInterval(t) }
-      if(++tries>=80) clearInterval(t);
-    },50);
-    el.addEventListener('input',function(){ putTxt(storeKey,el.value) },true);
-    el.addEventListener('change',function(){ putTxt(storeKey,el.value) },true);
-    if(getTxt(storeKey)===null) putTxt(storeKey,el.value);
-  }
+    diagnostics: pick('diagnostics'),
+    exam:        pick('exam'),
 
-  function start(){
-    persistSelect('model');
-    persistSelect('specialty');
-    persistCheckbox('allowInference');
-    persistTextSmart('provider',['provider','clinician']);
-    persistTextSmart('clinic',['clinic','practice','clinicName','practiceName']);
-  }
+    model: pick('model')
+  };
+}
 
-  if(document.readyState==='complete'){ start() } else { window.addEventListener('load',start,{once:true}) }
-})();
+function apply(data){
+  const set = (id, v) => { const el = byId(id); if (el && typeof v === 'string') el.value = v; };
+  if (!data || typeof data !== 'object') return;
+
+  set('provider', data.provider);
+  set('clinic',   data.clinic);
+  set('specialty',data.specialty);
+  set('patient',  data.patient);
+  set('mrn',      data.mrn);
+  set('dob',      data.dob);
+  set('sex',      data.sex);
+  set('age',      data.age);
+
+  set('chiefComplaint', data.chiefComplaint);
+  set('hpi',            data.hpi);
+  set('pmh',            data.pmh);
+  set('fh',             data.fh);
+  set('sh',             data.sh);
+  set('ros',            data.ros);
+
+  set('vBP', data.vBP);
+  set('vHR', data.vHR);
+  set('vRR', data.vRR);
+  set('vTemp', data.vTemp);
+  set('vWeight', data.vWeight);
+  set('vO2Sat', data.vO2Sat);
+
+  set('diagnostics', data.diagnostics);
+  set('exam',        data.exam);
+
+  set('model', data.model);
+}
+
+function save(){
+  if (window.__suppressPersist) return;
+  try { localStorage.setItem(PERSIST_KEY, JSON.stringify(collect())); } catch {}
+}
+
+function load(){
+  try {
+    const raw = localStorage.getItem(PERSIST_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    apply(data);
+  } catch {}
+}
+
+function wire(){
+  const ids = [
+    'provider','clinic','specialty','patient','mrn','dob','sex','age',
+    'chiefComplaint','hpi','pmh','fh','sh','ros',
+    'vBP','vHR','vRR','vTemp','vWeight','vO2Sat',
+    'diagnostics','exam','model'
+  ];
+  ids.forEach(id => {
+    const el = byId(id);
+    if (!el) return;
+    el.addEventListener('input', save, { passive: true });
+    el.addEventListener('change', save, { passive: true });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => { load(); wire(); });
