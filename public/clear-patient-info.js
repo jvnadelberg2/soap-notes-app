@@ -1,12 +1,4 @@
-/* BEGIN:ARCH-COMMENT
-File: public/clear-patient-info.js
-Purpose: High-level description of this module in the SOAP/BIRP notes app.
-Endpoints: none detected
-Exports: none detected
-Notes:
-Security: Applies middleware where wired; follow immutability rules for finalized notes.
-Observability: Increment metrics where relevant; return JSON errors.
-END:BEGIN:ARCH-COMMENT */
+<<<<<<< HEAD
 /* /clear-patient-info.js — v2 */
 (function () {
   "use strict";
@@ -108,3 +100,9 @@ END:BEGIN:ARCH-COMMENT */
     init();
   }
 })();
+=======
+'use strict';
+
+// Neutralized to avoid conflicting clear handlers.
+// All clearing is handled in public/actions-stable.js.
+>>>>>>> 03099f6 (marg requests)
