@@ -1,131 +1,77 @@
-'use strict';
-
-/*
-  Replacement for the old chip-based ROS helper.
-
-  What this does:
-  - Finds <textarea id="ros"> (your existing free-text ROS field).
-  - Renders a grid of checkboxes for common systems right ABOVE that textarea.
-  - Ticking a checkbox inserts that system name into the textarea (de-duplicated).
-  - Unticking removes it from the textarea.
-  - If the textarea already contains some system names at load, matching boxes start checked.
-  - Clicking “New Note” (btn-new-note) clears all ROS checkboxes.
-
-  No backend changes required. Your save/load path for #ros stays the same.
-*/
-
+/* /ros-builder.js — v6 (no DOM injection, just wiring) */
 (function(){
-  if (window.__ROS_CHECKBOXES__) return; window.__ROS_CHECKBOXES__ = true;
+  "use strict";
 
-  function $(id){ return document.getElementById(id); }
-  function $all(sel){ return Array.from(document.querySelectorAll(sel)); }
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const rosTextarea = () => document.getElementById("ros");
 
-  // Systems list (labels written exactly as they’ll appear in the textarea)
-  const SYSTEMS = [
-    'Constitutional',
-    'Eyes',
-    'ENT',
-    'Cardiovascular',
-    'Respiratory',
-    'GI',
-    'GU',
-    'Musculoskeletal',
-    'Neuro',
-    'Psych',
-    'Endo',
-    'Heme/Lymph',
-    'Allergy/Immun',
-    'skin/breast'
-  ];
-
-  // Text helpers
-  function hasTerm(text, term){
-    const re = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\$&')}\\b`, 'i');
-    return re.test(text || '');
-  }
-  function insertTerm(text, term){
-    if (!text) return term;
-    if (hasTerm(text, term)) return text;
-    const needsSep = text.trim().length > 0 && !/[;.]$/.test(text.trim());
-    return (text + (needsSep ? '; ' : '') + term).trim();
-  }
-  function removeTerm(text, term){
-    const re = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\$&')}\\b[;,.\\s]*`, 'ig');
-    return (text || '').replace(re, '').replace(/\s{2,}/g,' ').trim();
-  }
-
-  function buildGrid(textarea){
-    const wrap = document.createElement('div');
-    wrap.id = 'ros-checkbox-grid';
-    wrap.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:8px 0 6px';
-
-    SYSTEMS.forEach(labelText => {
-      const lbl = document.createElement('label');
-      lbl.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;user-select:none';
-
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.className = 'ros-check';
-      cb.value = labelText;
-
-      // Initialize checked state from existing textarea content
-      try { cb.checked = hasTerm(textarea.value, labelText); } catch {}
-
-      cb.addEventListener('change', function(){
-        const cur = textarea.value || '';
-        const next = cb.checked ? insertTerm(cur, labelText) : removeTerm(cur, labelText);
-        textarea.value = next;
-        textarea.dispatchEvent(new Event('input'));
-      }, {capture:true});
-
-      const span = document.createElement('span');
-      span.textContent = labelText;
-
-      lbl.appendChild(cb);
-      lbl.appendChild(span);
-      wrap.appendChild(lbl);
+  function systems() {
+    return $$(".ros-row").map(row => {
+      const name = row.getAttribute("data-sys");
+      const neg = $(".ros-neg", row);
+      const pos = $(".ros-pos", row);
+      return { name, neg, pos };
     });
-
-    return wrap;
   }
 
-  function clearAll(){
-    $all('#ros-checkbox-grid input.ros-check').forEach(cb => { cb.checked = false; });
+  function buildRosString() {
+    const parts = [];
+    systems().forEach(({name, neg, pos}) => {
+      const txt = (pos.value || "").trim();
+      if (neg.checked && !txt) {
+        parts.push(`${name}: negative.`);
+      } else if (txt) {
+        parts.push(`${name}: ${txt.replace(/\s*[.;]\s*$/,'')}.`);
+      } else {
+        // explicitly not negative and no positives
+        parts.push(`${name}: not assessed.`);
+      }
+    });
+    return `ROS: ${parts.join("\n")}`;
   }
 
-  function wire(){
-    const ta = $('ros');
+  function setRos(val, {append=false}={}) {
+    const ta = rosTextarea();
     if (!ta) return;
-
-    // If an old toolbar exists, remove it (for safety when replacing older builds)
-    const oldToolbar = document.getElementById('ros-quick-toolbar');
-    if (oldToolbar && oldToolbar.parentNode) oldToolbar.parentNode.removeChild(oldToolbar);
-
-    // Insert grid right above the textarea’s parent row (or just above the textarea)
-    const grid = buildGrid(ta);
-    if (ta.parentNode) {
-      ta.parentNode.insertBefore(grid, ta);
+    if (append && ta.value.trim()) {
+      ta.value = `${ta.value.replace(/\s+$/,'')}\n${val}`;
     } else {
-      // Fallback: append after body if layout is unusual
-      document.body.insertBefore(grid, document.body.firstChild);
+      ta.value = val;
     }
-
-    // When textarea is cleared manually, untick all boxes (keeps UI in sync)
-    ta.addEventListener('input', function(){
-      if ((ta.value || '').trim() === '') clearAll();
-    });
-
-    // Clear on New Note button
-    const newBtn = $('btn-new-note');
-    if (newBtn) newBtn.addEventListener('click', function(){
-      clearAll();
-      // Let your existing code clear #ros value as it already does
-    }, {capture:true});
+    ta.dispatchEvent(new Event("input", {bubbles:true}));
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', wire, {once:true});
+  function allNegative() {
+    systems().forEach(({neg, pos}) => { neg.checked = true; pos.value = ""; });
+    setRos(buildRosString(), {append:false});
+  }
+
+  function clearBuilder() {
+    systems().forEach(({neg, pos}) => { neg.checked = true; pos.value = ""; });
+    setRos("", {append:false});
+  }
+
+  function bind() {
+    const qb = document.getElementById("rosQuickBuilder");
+    if (!qb || qb.dataset.bound === "1") return;
+    qb.dataset.bound = "1";
+
+    $("#rosAllNeg").addEventListener("click", (e)=>{ e.preventDefault(); allNegative(); });
+    $("#rosReplace").addEventListener("click", (e)=>{ e.preventDefault(); setRos(buildRosString(), {append:false}); });
+    $("#rosInsert").addEventListener("click", (e)=>{ e.preventDefault(); setRos(buildRosString(), {append:true}); });
+    $("#rosClear").addEventListener("click", (e)=>{ e.preventDefault(); clearBuilder(); });
+
+    // If user edits any builder field, keep textarea in sync (replace mode)
+    systems().forEach(({neg,pos}) => {
+      neg.addEventListener("change", ()=> setRos(buildRosString(), {append:false}));
+      pos.addEventListener("input", ()=> setRos(buildRosString(), {append:false}));
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bind);
   } else {
-    wire();
+    bind();
   }
 })();
