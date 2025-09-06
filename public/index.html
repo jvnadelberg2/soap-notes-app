@@ -39,6 +39,16 @@
       white-space:pre-wrap; word-break:break-word; font-family: Helvetica, Arial, sans-serif;
     }
     #soapTextOut .soap-h strong { font-weight:700; }
+
+    /* ROS builder */
+    #rosQuickBuilder { margin-top:8px; border:1px dashed #e5e7eb; border-radius:8px; padding:10px }
+    #rosGrid { display:grid; gap:8px; grid-template-columns: 1fr 1fr; }
+    @media (max-width:860px){ #rosGrid { grid-template-columns:1fr } }
+    .ros-row { display:grid; grid-template-columns: 0.8fr 0.2fr 1fr; gap:8px; align-items:center }
+    .ros-row label { font-size:13px; color:#374151; }
+    .ros-row .negwrap { display:flex; align-items:center; gap:6px }
+    .ros-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px }
+    .ros-actions .button { padding:8px 10px; font-weight:600 }
   </style>
 </head>
 <body>
@@ -110,11 +120,11 @@
               <label style="flex:1 1 180px">DOB
                 <input id="dob" type="text" />
               </label>
-              <label style="flex:1 1 180px">Sex
-                <input id="sex" type="text" />
+              <label style="flex:0 0 auto">Sex
+                <input id="sex" type="text" maxlength="1" inputmode="text" style="width:3ch" />
               </label>
-              <label style="flex:1 1 180px">Age
-                <input id="age" type="text" />
+              <label style="flex:0 0 auto">Age
+                <input id="age" type="text" maxlength="3" inputmode="numeric" style="width:5ch" />
               </label>
             </div>
           </div>
@@ -148,6 +158,91 @@
               <div class="row">
                 <label>ROS — Review of Systems</label>
                 <textarea id="ros"></textarea>
+
+                <!-- SINGLE, non-duplicated ROS quick builder -->
+                <div id="rosQuickBuilder" aria-label="ROS Quick Builder">
+                  <div id="rosGrid">
+                    <!-- label | negative? | positives -->
+                    <div class="ros-row" data-sys="Constitutional">
+                      <label>Constitutional</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., fever, chills"/>
+                    </div>
+                    <div class="ros-row" data-sys="HEENT">
+                      <label>HEENT</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., sore throat"/>
+                    </div>
+                    <div class="ros-row" data-sys="Eyes">
+                      <label>Eyes</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., yellowing, discharge"/>
+                    </div>
+                    <div class="ros-row" data-sys="Respiratory">
+                      <label>Respiratory</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., cough, dyspnea"/>
+                    </div>
+                    <div class="ros-row" data-sys="Cardiovascular">
+                      <label>Cardiovascular</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., chest pain"/>
+                    </div>
+                    <div class="ros-row" data-sys="Gastrointestinal">
+                      <label>Gastrointestinal</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., nausea, vomiting"/>
+                    </div>
+                    <div class="ros-row" data-sys="Genitourinary">
+                      <label>Genitourinary</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., dysuria"/>
+                    </div>
+                    <div class="ros-row" data-sys="Musculoskeletal">
+                      <label>Musculoskeletal</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., joint pain"/>
+                    </div>
+                    <div class="ros-row" data-sys="Skin">
+                      <label>Skin</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., rash"/>
+                    </div>
+                    <div class="ros-row" data-sys="Neurological">
+                      <label>Neurological</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., headache, dizziness"/>
+                    </div>
+                    <div class="ros-row" data-sys="Psychiatric">
+                      <label>Psychiatric</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., anxiety, depression"/>
+                    </div>
+                    <div class="ros-row" data-sys="Endocrine">
+                      <label>Endocrine</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., polyuria"/>
+                    </div>
+                    <div class="ros-row" data-sys="Hematologic/Lymphatic">
+                      <label>Hematologic/Lymphatic</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., easy bruising"/>
+                    </div>
+                    <div class="ros-row" data-sys="Allergic/Immunologic">
+                      <label>Allergic/Immunologic</label>
+                      <div class="negwrap"><input class="ros-neg" type="checkbox" checked /><span class="hint">neg</span></div>
+                      <input class="ros-pos" type="text" placeholder="e.g., seasonal allergies"/>
+                    </div>
+                  </div>
+
+                  <div class="ros-actions">
+                    <button type="button" id="rosAllNeg" class="button">All Negative</button>
+                    <button type="button" id="rosInsert" class="button">Insert</button>
+                    <button type="button" id="rosReplace" class="button accent">Replace</button>
+                    <button type="button" id="rosClear" class="button warn">Clear Builder</button>
+                  </div>
+                </div>
+                <!-- /ROS quick builder -->
               </div>
 
               <div class="row row-3">
@@ -196,15 +291,16 @@
   <!-- Scripts -->
   <script src="/fix-dropdowns.js?v=9101" defer></script>
   <script src="/app.js?v=1002" defer></script>
-  <script src="/generate-stable.js?v=10" defer></script>
 
-  <!-- persist first, actions last -->
+  <!-- generation & UI -->
+  <script src="/generate-stable.js?v=12" defer></script>
   <script src="/persist-ui.js?v=3" defer></script>
   <script src="/ui-below-buttons.js?v=19" defer></script>
-  <script src="/actions-stable.js?v=7004" defer></script>
+  <script src="/actions-stable.js?v=7006" defer></script>
 
-  <!-- removed: /clear-stable.js -->
+  <!-- patient/ROS helpers -->
   <script src="/discipline-loader.js" defer></script>
-  <script src="/clear-patient-info.js" defer></script>
+  <script src="/clear-patient-info.js?v=2" defer></script>
+  <script src="/ros-builder.js?v=6" defer></script>
 </body>
 </html>
