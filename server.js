@@ -1,392 +1,254 @@
-'use strict';
+// server.js  (CommonJS; Node 18+)
+// Start with: PORT=5050 node server.js
+// Optional env:
+//   MODEL_API_URL=http://localhost:11434/v1/chat/completions
+//   MODEL_NAME='llama3.1:8b'
+//   PUBLIC_DIR=/absolute/path/to/public
 
-// server.js  (CommonJS)
+const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const express = require('express');
-
-const store = require('./services/store');
-const { renderNotePDF } = require('./services/pdf');
-const notesApi = require('./routes/notes-api');
-const exportPdf = require('./routes/export-pdf');
-const net = require('net');
-
 
 const app = express();
-const PORT = Number(process.env.PORT) || 5050;
+const PORT = process.env.PORT || 5050;
 
-const MODEL_API_URL = (process.env.MODEL_API_URL || 'http://localhost:11434/v1/chat/completions').trim();
-const MODEL_NAME = process.env.MODEL_NAME || 'llama3.1:8b';
+function resolvePublicDir() {
+  const candidates = [
+    process.env.PUBLIC_DIR && path.resolve(process.env.PUBLIC_DIR),
+    path.resolve(__dirname, 'public'),
+    path.resolve(process.cwd(), 'public'),
+  ].filter(Boolean);
+  for (const dir of candidates) {
+    if (fs.existsSync(path.join(dir, 'index.html'))) return dir;
+  }
+  return candidates[0] || path.resolve(__dirname, 'public');
+}
+const PUBLIC_DIR = resolvePublicDir();
+const INDEX_PATH = path.join(PUBLIC_DIR, 'index.html');
 
-app.use(express.json({ limit: '1mb' }));
-
-const publicDir = path.join(process.cwd(), 'public');
-app.use(express.static(publicDir));
-
-// mounts (routers)
-app.use('/api', notesApi);
-app.use('/', exportPdf);
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(PUBLIC_DIR, { index: false }));
 
 app.get('/health', (_req, res) => {
-  const indexExists = fs.existsSync(path.join(publicDir, 'index.html'));
-  res.json({ ok: true, publicDir, indexExists, modelApi: MODEL_API_URL, modelName: MODEL_NAME });
+  res.json({
+    ok: true,
+    publicDir: PUBLIC_DIR,
+    indexExists: fs.existsSync(INDEX_PATH),
+    modelApi: process.env.MODEL_API_URL || 'http://localhost:11434/v1/chat/completions',
+    modelName: process.env.MODEL_NAME || 'llama3.1:8b',
+  });
 });
 
-app.get('/api/models', async (_req, res) => {
-  try {
-    const r = await fetch('http://localhost:11434/api/tags');
-    if (r.ok) {
-      const data = await r.json();
-      const names = (data.models || []).map(m => m.name).filter(Boolean);
-      if (names.length) return res.json(names);
-    }
-  } catch {}
-  res.json([MODEL_NAME, 'llama3.2:3b', 'llama3:70b', 'mistral:7b', 'qwen2:7b', 'phi3:mini']);
+app.get('/api/models', (_req, res) => {
+  const id = process.env.MODEL_NAME || 'llama3.1:8b';
+  res.json({ models: [{ id, label: id }] });
 });
 
-/* ---------- SPECIALTY DROPDOWN: server-side guarantee ---------- */
+/* ---------- Helpers ---------- */
 
-// we will serve /specialties.js even if the file is missing
-const FALLBACK_SPECIALTIES_JS = `"use strict";(function(){var SPECIALTIES=[
-"Addiction Counselor","Addiction Medicine Physician","Advanced Practice Registered Nurse (APRN)","Allergy / Immunology Physician","Anesthesiologist","Audiologist","Cardiologist","Cardiothoracic Surgeon","Case Manager","Child & Adolescent Psychiatrist","Clinical Laboratory Scientist","Clinical Mental Health Counselor","Clinical Nurse Specialist","Clinical Psychologist","Clinical Social Worker","Coding and Billing Specialist","Colorectal Surgeon","Critical Care Physician / Intensivist","Cytopathologist","Dermatologist","Developmental-Behavioral Pediatrician","Dietitian","Emergency Medical Technician (EMT)","Emergency Medicine Physician","Endocrinologist","Family Medicine Physician","Forensic Pathologist","Gastroenterologist","General Surgeon","Geneticist (Medical)","Geriatrician","Gynecologic Oncologist","Hand Surgeon","Health Information Manager","Hematologist","Hematologist-Oncologist","Hospice & Palliative Medicine Specialist","Hospitalist","Infectious Disease Specialist","Internal Medicine Physician","Interventional Radiologist","Laboratory Technologist","Legal / Compliance Officer","Licensed Marriage and Family Therapist (LMFT)","Licensed Professional Clinical Counselor (LPCC)","Licensed Practical Nurse (LPN)","Licensed Vocational Nurse (LVN)","Maternal-Fetal Medicine Specialist","Medical Assistant","Medical Geneticist","Medical Oncologist","Medical Scribe","Neonatologist","Nephrologist","Neurologist","Neuropathologist","Neurosurgeon","Nuclear Medicine Physician","Nurse Anesthetist (CRNA)","Nurse Midwife (CNM)","Nurse Practitioner (NP)","Obstetrician / Gynecologist (OB/GYN)","Occupational Medicine Physician","Occupational Therapist (OT)","Ophthalmologist","Optometrist","Orthopedic Surgeon","Otolaryngologist (ENT)","Pain Medicine Specialist","Paramedic","Pathologist","Pediatric Cardiologist","Pediatric Endocrinologist","Pediatric Neurologist","Pediatric Oncologist","Pediatric Pulmonologist","Pediatrician","Pharmacist","Physical Medicine & Rehabilitation Physician","Physical Therapist (PT)","Physician Assistant (PA)","Plastic Surgeon","Preventive Medicine Physician","Primary Care Physician","Professional Counselor","Psychiatrist","Psychologist (Clinical)","Psychologist (Counseling)","Psychologist (Neuropsychology)","Pulmonologist","Radiation Oncologist","Radiologist (Diagnostic)","Recreational Therapist","Reproductive Endocrinologist / Infertility Specialist","Respiratory Therapist (RT)","Rheumatologist","Sleep Medicine Specialist","Speech-Language Pathologist (SLP)","Sports Medicine Physician","Substance Abuse Counselor","Thoracic Surgeon","Transplant Surgeon","Trauma Surgeon","Urologist","Vascular Surgeon"
-];function ensureField(){var sel=document.getElementById("specialty");if(sel)return sel;var field=document.createElement("div");field.className="field";field.id="specialty-field";var lbl=document.createElement("label");lbl.setAttribute("for","specialty");lbl.textContent="Specialty";sel=document.createElement("select");sel.id="specialty";sel.name="specialty";field.appendChild(lbl);field.appendChild(sel);var form=document.querySelector("form");if(form){if(form.firstElementChild){form.insertBefore(field,form.firstElementChild.nextSibling);}else{form.appendChild(field);}}else{document.body.insertBefore(field,document.body.firstChild);}return sel;}function populate(sel){sel.innerHTML="";for(var i=0;i<SPECIALTIES.length;i++){var s=SPECIALTIES[i];var o=document.createElement("option");o.value=s;o.textContent=s;sel.appendChild(o);}var def=localStorage.getItem("specialty")||SPECIALTIES[0];sel.value=def;}function boot(){var sel=ensureField();populate(sel);sel.addEventListener("change",function(){try{localStorage.setItem("specialty",sel.value);}catch(e){}},{passive:true});window.getSpecialty=function(){return sel.value||"";};}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot,{once:true});}else{boot();}})();`;
+function buildPromptFromBody(body = {}) {
+  const {
+    patient = '', mrn = '', dob = '', sex = '', age = '',
+    chiefComplaint = '', hpi = '', pmh = '', fh = '', sh = '',
+    ros = '', diagnostics = '', exam = ''
+  } = body;
 
-app.get('/specialties.js', (req, res) => {
-  const f = path.join(publicDir, 'specialties.js');
-  if (fs.existsSync(f)) {
-    res.type('application/javascript');
-    return res.sendFile(f);
-  }
-  res.type('application/javascript').send(FALLBACK_SPECIALTIES_JS);
-});
-
-// inject the script tag into index.html on the fly so you don't need to edit the file
-function injectSpecialtyScript(html) {
-  if (!html) return html;
-  if (/specialties\.js/.test(html)) return html; // already there
-  return html.replace(/<\/body>\s*<\/html>/i, '  <script src="/specialties.js?v=1" defer></script>\n</body></html>');
+  return [
+    'You are a precise clinical assistant.',
+    'Return ONLY a JSON object with EXACT keys: {"subjective":"","objective":"","assessment":"","plan":""}.',
+    'Each value MUST be a non-empty string. If no information exists for a section, set it to "None provided.".',
+    'Do NOT invent vitals, diagnostics, or exam details. The server will set the objective section from inputs.',
+    'Reflect important ROS/HPI findings (e.g., yellow eyes) in Assessment and Plan when clinically appropriate.',
+    'Avoid placeholders like "[insert timeframe]"; use practical phrasing (e.g., "in 1–2 weeks").',
+    '',
+    'Patient Context:',
+    `Patient: ${patient} | MRN: ${mrn} | DOB: ${dob} | Sex: ${sex} | Age: ${age}`,
+    `Chief Complaint: ${chiefComplaint}`,
+    `HPI: ${hpi}`,
+    `PMH: ${pmh}`,
+    `FH: ${fh}`,
+    `SH: ${sh}`,
+    `ROS: ${ros}`,
+    `Diagnostics (user-entered): ${diagnostics}`,
+    `Exam (user-entered): ${exam}`,
+  ].join('\n');
 }
 
-/* ---------- Specialties API (optional, kept for compatibility) ---------- */
-app.get('/api/specialties', async (_req, res) => {
-  try {
-    const list = [
-      "Addiction Counselor","Addiction Medicine Physician","Advanced Practice Registered Nurse (APRN)",
-      "Allergy / Immunology Physician","Anesthesiologist","Audiologist","Cardiologist",
-      "Cardiothoracic Surgeon","Case Manager","Child & Adolescent Psychiatrist","Clinical Laboratory Scientist",
-      "Clinical Mental Health Counselor","Clinical Nurse Specialist","Clinical Psychologist","Clinical Social Worker",
-      "Coding and Billing Specialist","Colorectal Surgeon","Critical Care Physician / Intensivist","Cytopathologist",
-      "Dermatologist","Developmental-Behavioral Pediatrician","Dietitian","Emergency Medical Technician (EMT)",
-      "Emergency Medicine Physician","Endocrinologist","Family Medicine Physician","Forensic Pathologist",
-      "Gastroenterologist","General Surgeon","Geneticist (Medical)","Geriatrician","Gynecologic Oncologist",
-      "Hand Surgeon","Health Information Manager","Hematologist","Hematologist-Oncologist",
-      "Hospice & Palliative Medicine Specialist","Hospitalist","Infectious Disease Specialist",
-      "Internal Medicine Physician","Interventional Radiologist","Laboratory Technologist","Legal / Compliance Officer",
-      "Licensed Marriage and Family Therapist (LMFT)","Licensed Professional Clinical Counselor (LPCC)",
-      "Licensed Practical Nurse (LPN)","Licensed Vocational Nurse (LVN)","Maternal-Fetal Medicine Specialist",
-      "Medical Assistant","Medical Geneticist","Medical Oncologist","Medical Scribe","Neonatologist","Nephrologist",
-      "Neurologist","Neuropathologist","Neurosurgeon","Nuclear Medicine Physician","Nurse Anesthetist (CRNA)",
-      "Nurse Midwife (CNM)","Nurse Practitioner (NP)","Obstetrician / Gynecologist (OB/GYN)",
-      "Occupational Medicine Physician","Occupational Therapist (OT)","Ophthalmologist","Optometrist",
-      "Orthopedic Surgeon","Otolaryngologist (ENT)","Pain Medicine Specialist","Paramedic","Pathologist",
-      "Pediatric Cardiologist","Pediatric Endocrinologist","Pediatric Neurologist","Pediatric Oncologist",
-      "Pediatric Pulmonologist","Pediatrician","Pharmacist","Physical Medicine & Rehabilitation Physician",
-      "Physical Therapist (PT)","Physician Assistant (PA)","Plastic Surgeon","Preventive Medicine Physician",
-      "Primary Care Physician","Professional Counselor","Psychiatrist","Psychologist (Clinical)",
-      "Psychologist (Counseling)","Psychologist (Neuropsychology)","Pulmonologist","Radiation Oncologist",
-      "Radiologist (Diagnostic)","Recreational Therapist","Reproductive Endocrinologist / Infertility Specialist",
-      "Respiratory Therapist (RT)","Rheumatologist","Sleep Medicine Specialist","Speech-Language Pathologist (SLP)",
-      "Sports Medicine Physician","Substance Abuse Counselor","Thoracic Surgeon","Transplant Surgeon","Trauma Surgeon",
-      "Urologist","Vascular Surgeon"
-    ];
-    res.json({ specialties: list });
-  } catch {
-    res.json({ specialties: ["General Practice"] });
-  }
-});
+function coerceSoapJson(content) {
+  const fallback = {
+    subjective: 'None provided.',
+    objective: 'None provided.',
+    assessment: 'None provided.',
+    plan: 'None provided.',
+  };
+  if (!content || typeof content !== 'string') return fallback;
 
-/* ---------- Model call helper ---------- */
-async function callModel({ system, user, temperature = 0.2 }) {
-  const body = { model: MODEL_NAME, temperature, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] };
-  const resp = await fetch(MODEL_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!resp.ok) {
-    const t = await resp.text().catch(()=>'');
-    throw new Error(`Model API error ${resp.status}: ${t || resp.statusText}`);
-  }
-  const j = await resp.json();
-  const text = j?.choices?.[0]?.message?.content ?? j?.choices?.[0]?.text ?? '';
-  return (text || '').trim();
-}
-
-function s(x){ return (x ?? '').toString().trim(); }
-function normalizeNone(txt){
-  const t = (txt || '').trim();
-  if (!t) return 'None provided.';
-  if (/^none provided\b/i.test(t)) return 'None provided.';
-  if (/^none\b/i.test(t)) return 'None provided.';
-  if (/due to lack of information/i.test(t)) return 'None provided.';
-  return t;
-}
-
-/* ---------- SOAP helpers ---------- */
-function computeSubjective(body){
-  const cc  = s(body.chiefComplaint);
-  const hpi = s(body.hpi);
-  const pmh = s(body.pmh);
-  const fh  = s(body.fh);
-  const sh  = s(body.sh);
-  const ros = s(body.ros);
-
-  const parts = [];
-  if (cc)  parts.push(`Chief Complaint: ${cc}`);
-  if (hpi) parts.push(`HPI: ${hpi}`);
-  if (pmh) parts.push(`PMH: ${pmh}`);
-  if (fh)  parts.push(`FH: ${fh}`);
-  if (sh)  parts.push(`SH: ${sh}`);
-  if (ros) parts.push(`ROS: ${ros}`);
-
-  return parts.length ? parts.join('\n') : 'None provided.';
-}
-
-function computeObjective(body){
-  const vBP = s(body.vBP);
-  const vHR = s(body.vHR);
-  const vRR = s(body.vRR);
-  const vTemp = s(body.vTemp);
-  const vWeight = s(body.vWeight);
-  const vO2Sat = s(body.vO2Sat);
-  const height = s(body.height);
-  const pain = s(body.painScore);
-  const diag = s(body.diagnostics);
-  const exam = s(body.exam);
-  const allergies = s(body.allergies);
-  const meds = s(body.medications);
-
-  const parts = [];
-  const haveVitals = vBP || vHR || vRR || vTemp || vWeight || vO2Sat || height || pain;
-  if (haveVitals) {
-    const vitals = [
-      `BP: ${vBP || '—'}`,
-      `HR: ${vHR || '—'}`,
-      `RR: ${vRR || '—'}`,
-      `Temp: ${vTemp || '—'}`,
-      `Weight: ${vWeight || '—'}`,
-      `O2 Sat: ${vO2Sat || '—'}`
-    ];
-    if (height) vitals.push(`Height: ${height}`);
-    if (pain) vitals.push(`Pain: ${pain}`);
-    parts.push(vitals.join(', '));
-  }
-  if (allergies) parts.push(`Allergies: ${allergies}`);
-  if (meds) parts.push(`Medications: ${meds}`);
-  if (diag) parts.push(`Diagnostics: ${diag}`);
-  if (exam) parts.push(`Exam: ${exam}`);
-
-  return parts.length ? parts.join('\n') : 'None provided.';
-}
-
-function hasAnyClinicalInput(body){
-  const subj = computeSubjective(body);
-  const obj  = computeObjective(body);
-  const anyS = subj && subj !== 'None provided.';
-  const anyO = obj  && obj  !== 'None provided.';
-  return anyS || anyO;
-}
-
-function parseSOAPSections(text){
-  const T = (text || '').replace(/\r\n/g, '\n');
-  const heads = ['Subjective','Objective','Assessment','Plan'];
-  const out = {};
-  for (const name of heads) {
-    const pattern = new RegExp(
-      String.raw`(?:^|\n)\s*(?:\*\*)?\s*${name}\s*(?:\*\*)?\s*:?\s*\n?` +
-      String.raw`([\s\S]*?)(?=(?:^|\n)\s*(?:\*\*)?\s*(?:Subjective|Objective|Assessment|Plan)\s*(?:\*\*)?\s*:?\s*\n?|$)`,
-      'i'
-    );
-    const m = T.match(pattern);
-    if (m) out[name.toLowerCase()] = m[1].trim();
-  }
-  return out;
-}
-
-function shapeSOAP({ subj, obj, assess, plan }){
-  return `Subjective
-${normalizeNone(subj)}
-
-Objective
-${normalizeNone(obj)}
-
-Assessment
-${normalizeNone(assess)}
-
-Plan
-${normalizeNone(plan)}`;
-}
-
-async function handleSoap(req, res){
-  try{
-    const useInference = !!req.body?.useInference;
-    const specialty = s(req.body?.specialty);
-    const subj = computeSubjective(req.body || {});
-    const obj  = computeObjective(req.body || {});
-    const anyInput = hasAnyClinicalInput(req.body || {});
-
-    if (!useInference) {
-      const finalText = shapeSOAP({ subj, obj, assess: 'None provided.', plan: 'None provided.' });
-      return res.json({ ok:true, text: finalText, noteText: finalText, note: finalText });
-    }
-
-    let assess = 'None provided.';
-    let plan   = 'None provided.';
-    if (anyInput) {
-      const base =
-        'You are a clinical documentation assistant. Based ONLY on the provided Subjective and Objective text, ' +
-        "write Assessment and Plan. Do not invent data. If insufficient information, return 'None provided.' " +
-        'Return plain text with the two headings: Assessment, Plan. No markdown.';
-      const system = specialty ? `${base} The clinical specialty context is: ${specialty}.` : base;
-      const user =
-`Subjective:
-${subj}
-
-Objective:
-${obj}
-
-Write Assessment and Plan only.`;
-      const modelText = await callModel({ system, user, temperature: 0.1 });
-      const parsed = parseSOAPSections(modelText || '');
-      assess = parsed.assessment || modelText || '';
-      plan   = parsed.plan || '';
-
-      if (!parsed.assessment && !parsed.plan) {
-        const split = (modelText || '').split(/\n\s*Plan\s*:?\s*\n/i);
-        if (split.length === 2) {
-          assess = split[0].replace(/^\s*Assessment\s*:?\s*\n?/i,'').trim();
-          plan   = split[1].trim();
-        }
-      }
-      assess = normalizeNone(assess || '');
-      plan   = normalizeNone(plan || '');
-    }
-
-    const finalText = shapeSOAP({ subj, obj, assess, plan });
-    return res.json({ ok:true, text: finalText, noteText: finalText, note: finalText });
-  } catch(e){
-    res.status(500).json({ ok:false, error:'Error generating SOAP note.' });
-  }
-}
-
-app.post('/api/generate-soap-json-annotated', handleSoap);
-app.post('/api/generate_soap', handleSoap);
-app.post('/api/soap', handleSoap);
-
-/* ---------- BIRP ---------- */
-function pick(body, keys){
-  for (const k of keys) {
-    const v = body?.[k];
-    if (v != null && String(v).trim()) return String(v).trim();
-  }
-  return '';
-}
-function normalizeBIRP(body){
-  const behavior = pick(body, ['birpBehavior','behavior','observation','birpObservation','birp_behavior']);
-  const intervention = pick(body, ['birpIntervention','intervention','birp_intervention']);
-  const response = pick(body, ['birpResponse','response','birp_response']);
-  const plan = pick(body, ['birpPlan','plan','birp_plan','treatmentPlan','birpPlanText']);
-  return { behavior, intervention, response, plan };
-}
-function parseBIRPSections(text){
-  const T = (text || '').replace(/\r\n/g, '\n');
-  const names = ['Behavior','Intervention','Response','Plan'];
-  const out = {};
-  for (const name of names) {
-    const pattern = new RegExp(
-      String.raw`(?:^|\n)\s*(?:\*\*)?\s*${name}\s*(?:\*\*)?\s*:?\s*\n?` +
-      String.raw`([\s\S]*?)(?=(?:^|\n)\s*(?:\*\*)?\s*(?:Behavior|Intervention|Response|Plan)\s*(?:\*\*)?\s*:?\s*\n?|$)`,
-      'i'
-    );
-    const m = T.match(pattern);
-    if (m) out[name.toLowerCase()] = m[1].trim();
-  }
-  return out;
-}
-function shapedBIRPText(x){
-  return `Behavior
-${normalizeNone(x.behavior)}
-
-Intervention
-${normalizeNone(x.intervention)}
-
-Response
-${normalizeNone(x.response)}
-
-Plan
-${normalizeNone(x.plan)}`;
-}
-async function handleBIRP(req, res){
-  try{
-    const useInference = !!(req.body && req.body.useInference);
-    const fields = normalizeBIRP(req.body || {});
-    const userShaped = shapedBIRPText(fields);
-    if (!useInference) {
-      return res.json({ ok:true, text:userShaped, noteText:userShaped, note:userShaped, ...fields });
-    }
-
-    const system = `You are a clinical documentation assistant. Produce a BIRP note with the sections Behavior, Intervention, Response, Plan. Use ONLY the details provided; if a section is missing, output 'None provided.' exactly for that section. Do not invent or infer. Keep the style clinical and concise.`;
-
-    const user =
-`Behavior:
-${normalizeNone(fields.behavior)}
-
-Intervention:
-${normalizeNone(fields.intervention)}
-
-Response:
-${normalizeNone(fields.response)}
-
-Plan:
-${normalizeNone(fields.plan)}`;
-
-    const modelText = await callModel({ system, user, temperature: 0.1 });
-    const parsed = parseBIRPSections(modelText || '');
-
-    const text = shapedBIRPText({
-      behavior: parsed.behavior || fields.behavior || '',
-      intervention: parsed.intervention || '',
-      response: parsed.response || '',
-      plan: parsed.plan || ''
-    });
-
-    return res.json({ ok:true, text, noteText:text, note:text, ...fields });
-  } catch (e) {
-    console.error('BIRP generation failed:', e);
-    res.status(500).json({ error: 'BIRP generation failed' });
-  }
-}
-
-app.post('/api/birp', handleBIRP);
-
-async function startServer(desired) {
-  let p = Number(desired) || 5050;
-  for (let i = 0; i < 10; i++) {
+  const tryParse = (txt) => {
     try {
-      const server = await new Promise((resolve, reject) => {
-        const s = app.listen(p, () => resolve(s));
-        s.on('error', reject);
-      });
-      console.log('server listening on ' + p);
-      return server;
-    } catch (err) {
-      if (err && err.code === 'EADDRINUSE') {
-        console.warn('port ' + p + ' in use, trying ' + (p + 1));
-        p++;
-        continue;
-      }
-      throw err;
-    }
+      const j = JSON.parse(txt);
+      return {
+        subjective: (j.subjective || '').toString().trim() || fallback.subjective,
+        objective: (j.objective || '').toString().trim() || fallback.objective,
+        assessment: (j.assessment || '').toString().trim() || fallback.assessment,
+        plan: (j.plan || '').toString().trim() || fallback.plan,
+      };
+    } catch { return null; }
+  };
+
+  const strict = tryParse(content);
+  if (strict) return strict;
+
+  const first = content.indexOf('{');
+  const last = content.lastIndexOf('}');
+  if (first !== -1 && last > first) {
+    const inner = tryParse(content.slice(first, last + 1));
+    if (inner) return inner;
   }
-  console.error('no available port starting at ' + desired);
-  process.exit(1);
+  return { ...fallback, subjective: content.trim() || fallback.subjective };
 }
 
-if (!module.parent) startServer(PORT);
+function buildObjectiveFromBody(body = {}) {
+  const { vBP = '', vHR = '', vRR = '', vTemp = '', vWeight = '', vO2Sat = '', diagnostics = '', exam = '' } = body;
 
+  const vitals = [];
+  if (vBP) vitals.push(`BP ${vBP}`);
+  if (vHR) vitals.push(`HR ${vHR}`);
+  if (vRR) vitals.push(`RR ${vRR}`);
+  if (vTemp) vitals.push(`Temp ${vTemp}`);
+  if (vWeight) vitals.push(`Weight ${vWeight}`);
+  if (vO2Sat) vitals.push(`O2 Sat ${vO2Sat}`);
+
+  const sections = [];
+  if (vitals.length) sections.push(`Vitals: ${vitals.join(', ')}`);
+  if (diagnostics) sections.push(`Diagnostics: ${diagnostics}`);
+  if (exam) sections.push(`Exam: ${exam}`);
+
+  // 🔒 If absolutely nothing, return the exact wording you want:
+  return sections.length ? sections.join('\n') : 'No data provided.';
+}
+
+function genericAssessmentAndPlan(body = {}) {
+  const { chiefComplaint = '', ros = '' } = body;
+  const lcCC = (chiefComplaint || '').toLowerCase();
+  const lcROS = (ros || '').toLowerCase();
+
+  if (lcCC.includes('nosebleed') || lcCC.includes('epistaxis')) {
+    return {
+      assessment: 'Epistaxis, likely anterior, based on limited details provided.',
+      plan: [
+        '1) Firm continuous pressure to soft nose for 10–15 min; lean forward.',
+        '2) Humidification/saline; avoid nose blowing/picking for 24–48 h.',
+        '3) Consider topical vasoconstrictor if appropriate; review anticoagulants.',
+        '4) Red flags: heavy/persistent bleeding, instability, frequent recurrence → consider ENT.',
+        '5) Arrange follow-up as appropriate.'
+      ].join('\n')
+    };
+  }
+
+  if (lcROS.includes('eyes: yellow') || (lcROS.includes('sclera') && lcROS.includes('yellow'))) {
+    return {
+      assessment: 'Scleral icterus (yellow eyes) noted; etiology not determined with current info.',
+      plan: [
+        '1) Correlate with history/exam; consider bilirubin & LFTs if appropriate.',
+        '2) Screen for associated symptoms (dark urine, abdominal pain, pruritus).',
+        '3) Return precautions for worsening jaundice/systemic symptoms.',
+        '4) Arrange timely follow-up and further workup as indicated.'
+      ].join('\n')
+    };
+  }
+
+  return {
+    assessment: 'Limited data; condition not fully characterized.',
+    plan: [
+      '1) Supportive care as appropriate.',
+      '2) Monitor symptoms; return precautions for worsening.',
+      '3) Follow-up for reassessment and additional workup as indicated.'
+    ].join('\n')
+  };
+}
+
+function fillIfEmpty(result, body) {
+  const out = { ...result };
+  const empty = (s) => !s || s === 'None provided.' || !String(s).trim();
+  if (empty(out.assessment) || empty(out.plan)) {
+    const gp = genericAssessmentAndPlan(body);
+    if (empty(out.assessment)) out.assessment = gp.assessment;
+    if (empty(out.plan)) out.plan = gp.plan;
+  }
+  return out;
+}
+
+/* ---------- Model call ---------- */
+
+async function invokeModel(body) {
+  const api = process.env.MODEL_API_URL || 'http://localhost:11434/v1/chat/completions';
+  const model = process.env.MODEL_NAME || 'llama3.1:8b';
+
+  const payload = {
+    model,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'Return ONLY valid JSON with keys {"subjective":"","objective":"","assessment":"","plan":""}. No placeholders; no fabricated vitals/exam/diagnostics. The server will overwrite "objective" from user inputs.'
+      },
+      { role: 'user', content: buildPromptFromBody(body) },
+    ],
+    temperature: 0.1,
+    stream: false,
+    response_format: { type: 'json_object' },
+  };
+
+  const r = await fetch(api, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  let data;
+  try { data = await r.json(); }
+  catch (e) { return { ok: false, error: 'Bad JSON from model API', raw: await r.text() }; }
+
+  const content = data?.choices?.[0]?.message?.content ?? data?.message?.content ?? '';
+  const parsed = coerceSoapJson(content);
+
+  // 🔒 Hard guard: server builds Objective from raw inputs only.
+  const objective = buildObjectiveFromBody(body);
+  const repaired = fillIfEmpty({ ...parsed, objective }, body);
+
+  return { ok: true, result: repaired, raw: content };
+}
+
+async function handleGenerate(req, res) {
+  try {
+    const { ok, result, error } = await invokeModel(req.body || {});
+    if (!ok) return res.status(502).json({ ok: false, error });
+    res.json({ ok: true, result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: String(err) });
+  }
+}
+
+/* ---------- Routes ---------- */
+
+app.post('/api/generate-soap-json-annotated', handleGenerate);
+app.post('/api/soap', handleGenerate);
+app.post('/api/generate_soap', handleGenerate);
+app.post('/api/generate', handleGenerate);
+
+app.get('/', (_req, res) => {
+  if (!fs.existsSync(INDEX_PATH)) return res.status(500).send(`index.html not found at ${INDEX_PATH}`);
+  res.sendFile(INDEX_PATH);
+});
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  if (fs.existsSync(INDEX_PATH)) return res.sendFile(INDEX_PATH);
+  res.status(404).send('index.html not found');
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+  console.log('[STATIC ROOT]', PUBLIC_DIR);
+});

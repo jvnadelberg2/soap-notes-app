@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /* /clear-patient-info.js — v2 */
 (function () {
   "use strict";
@@ -100,9 +99,3 @@
     init();
   }
 })();
-=======
-'use strict';
-
-// Neutralized to avoid conflicting clear handlers.
-// All clearing is handled in public/actions-stable.js.
->>>>>>> 03099f6 (marg requests)
