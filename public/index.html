@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/light.css?v=101" />
   <style>
     :root { color-scheme: light }
-    body { background:#fff; color:#111; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif }
+    body { background:#fff; color:#111; font-family: Helvetica, Arial, sans-serif }
     .page { max-width:1360px; margin:20px auto; padding:0 16px }
     .grid { display:grid; gap:16px }
     .grid-2 { grid-template-columns: 1fr }
@@ -23,32 +23,29 @@
 
     input[type=text], textarea, select {
       width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#111; font-size:14px;
-      box-sizing:border-box; max-width:100%; display:block;
+      box-sizing:border-box; max-width:100%; display:block; font-family: Helvetica, Arial, sans-serif;
     }
     textarea { min-height:110px; resize:vertical }
     .hint { font-size:12px; color:#6b7280 }
     .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px }
-    .button { border-radius:8px; padding:10px 14px; border:1px solid #e5e7eb; cursor:pointer; font-weight:600; background:#fff }
+    .button { border-radius:8px; padding:10px 14px; border:1px solid #e5e7eb; cursor:pointer; font-weight:600; background:#fff; font-family: Helvetica, Arial, sans-serif; }
     .primary { background:#e0f2fe }
     .accent  { background:#dcfce7 }
     .warn    { background:#fde68a }
     .info    { background:#f3e8ff }
     pre#soapTextOut {
       min-height:240px; max-height:66vh; overflow:auto; background:#fff; color:#111;
-      border:1px solid #e5e7eb; border-radius:8px; padding:12px; white-space:pre-wrap; word-break:break-word; margin:0
+      border:1px solid #e5e7eb; border-radius:8px; padding:12px; margin:0;
+      white-space:pre-wrap; word-break:break-word; font-family: Helvetica, Arial, sans-serif;
     }
+    #soapTextOut .soap-h strong { font-weight:700; }
   </style>
-
-  <script src="/fix-dropdowns.js?v=9101" defer></script>
-  <script src="/app.js?v=1001" defer></script>
 </head>
 <body>
   <div class="page">
     <div id="status" class="hint"></div>
 
     <div class="grid grid-2">
-
-      <!-- LEFT COLUMN -->
       <div class="grid">
         <div class="card">
           <h3>Provider Information</h3>
@@ -65,7 +62,6 @@
                 </select>
               </div>
             </div>
-
             <div class="row row-2">
               <div>
                 <label for="provider">Clinician</label>
@@ -75,22 +71,17 @@
                 <label for="clinic">Clinic</label>
                 <input id="clinic" type="text" />
               </div>
+            </div>
+            <div class="row row-2">
               <div>
                 <label for="model">Model</label>
                 <select id="model"><option value=""></option></select>
               </div>
-            </div>
-
-            <div class="row row-2">
               <div style="display:flex;align-items:end">
                 <label style="display:flex;gap:8px;align-items:center;margin:0">
-                  <input id="useInference" type="checkbox" />
+                  <input id="useInference" type="checkbox" checked />
                   Use inference
                 </label>
-              </div>
-              <div>
-                <label for="provider">Clinician</label>
-                <input id="provider" type="text" />
               </div>
             </div>
           </div>
@@ -130,52 +121,61 @@
         </div>
 
         <div class="card">
-          <h3>Chief Complaint / HPI</h3>
-          <div class="body">
-            <!-- NEW: split into two fields; IDs provide separate values -->
-            <label for="chiefComplaint">Chief Complaint</label>
-            <textarea id="chiefComplaint"></textarea>
-
-            <label for="rawText">HPI</label>
-            <textarea id="rawText"></textarea>
-
-            <!-- Original buttons remain in their original place -->
-            <div id="downloads" class="hint" style="margin-top:8px;"></div>
-          </div>
-        </div>
-
-        <!-- Patient Data moved under Chief Complaint / HPI -->
-        <div class="card">
           <h3>Patient Data</h3>
           <div class="body">
             <div id="belowBtnsData" class="row" style="margin-top:8px">
               <div class="row">
-                <label>Patient History</label>
-                <textarea id="patientHistory"></textarea>
+                <label>Chief Complaint</label>
+                <textarea id="chiefComplaint"></textarea>
               </div>
+              <div class="row">
+                <label>HPI — History of Presenting Illness</label>
+                <textarea id="hpi"></textarea>
+              </div>
+              <div class="row">
+                <label>PMH — Past Medical History</label>
+                <textarea id="pmh"></textarea>
+              </div>
+              <div class="row">
+                <label>FH — Family History</label>
+                <textarea id="fh"></textarea>
+              </div>
+              <div class="row">
+                <label>SH — Social History</label>
+                <textarea id="sh"></textarea>
+              </div>
+
+              <div class="row">
+                <label>ROS — Review of Systems</label>
+                <textarea id="ros"></textarea>
+              </div>
+
               <div class="row row-3">
                 <div><label>BP</label><input id="vBP" type="text" /></div>
                 <div><label>HR</label><input id="vHR" type="text" /></div>
                 <div><label>RR</label><input id="vRR" type="text" /></div>
               </div>
+              <div class="row row-3">
+                <div><label>Temp</label><input id="vTemp" type="text" /></div>
+                <div><label>Weight</label><input id="vWeight" type="text" /></div>
+                <div><label>O2 Sat</label><input id="vO2Sat" type="text" /></div>
+              </div>
+
               <div class="row row-2">
                 <div>
-                  <label>Labs</label>
-                  <textarea id="labs"></textarea>
+                  <label>Diagnostics — Labs/Imaging/Studies</label>
+                  <textarea id="diagnostics"></textarea>
                 </div>
                 <div>
-                  <label>Imaging</label>
-                  <textarea id="imaging"></textarea>
+                  <label>Exam — Physical Examination</label>
+                  <textarea id="exam"></textarea>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <!-- /Patient Data (moved) -->
-
       </div>
 
-      <!-- RIGHT COLUMN -->
       <div class="grid">
         <div class="card">
           <h3>Generated SOAP Note</h3>
@@ -190,16 +190,21 @@
         </div>
       </div>
 
-    </div><!-- /.grid grid-2 -->
-  </div><!-- /.page -->
+    </div>
+  </div>
 
-  <script src="/persist-ui.js" defer></script>
-  <script src="/generate-stable.js?v=1" defer></script>
-  <script src="/clear-stable.js?v=1" defer></script>
-  <script src="/actions-stable.js?v=7001" defer></script>
-  <script src="/ui-below-buttons.js?v=18" defer></script>
-  <script src="discipline-loader.js" defer></script>
+  <!-- Scripts -->
+  <script src="/fix-dropdowns.js?v=9101" defer></script>
+  <script src="/app.js?v=1002" defer></script>
+  <script src="/generate-stable.js?v=10" defer></script>
+
+  <!-- persist first, actions last -->
+  <script src="/persist-ui.js?v=3" defer></script>
+  <script src="/ui-below-buttons.js?v=19" defer></script>
+  <script src="/actions-stable.js?v=7004" defer></script>
+
+  <!-- removed: /clear-stable.js -->
+  <script src="/discipline-loader.js" defer></script>
   <script src="/clear-patient-info.js" defer></script>
 </body>
 </html>
-
