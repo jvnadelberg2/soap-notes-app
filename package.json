@@ -2,7 +2,6 @@
   "name": "therapist-notes-ai",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "start": "node server.js",
     "start:5050": "PORT=5050 node server.js"
