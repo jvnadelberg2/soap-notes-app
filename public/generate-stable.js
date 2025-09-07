@@ -1,120 +1,72 @@
-(function () {
-  const $ = (id) => document.getElementById(id);
+'use strict';
 
-  const outEl = $("soapTextOut");
-  const btnGenerate = $("btnGenerate");
-  const useInferenceEl = $("useInference");
+(function(){
+  if (window.__GEN_WIRED__) return; window.__GEN_WIRED__ = true;
 
-  function getVisible(el) {
-    if (!el) return false;
-    return window.getComputedStyle(el).display !== "none";
+  function $(id){ return document.getElementById(id); }
+  function V(id){
+    var el=$(id); if(!el) return '';
+    if (el.type === 'checkbox') return !!el.checked;
+    return (el.value||'').trim();
   }
+  function setOut(txt){ var pre=$('soapTextOut'); if(pre) pre.textContent=(txt||'').trim(); }
+  function setTitle(fmt){ var h=$('generatedNoteTitle'); if(h) h.textContent=(fmt==='BIRP'?'BIRP':'SOAP')+' Generation'; }
 
-  function getNoteType() {
-    const sel = document.querySelector("[name='noteType']:checked") || $("noteType");
-    if (sel && (sel.value || sel.dataset.value)) return (sel.value || sel.dataset.value).toLowerCase();
-    const birpBox = $("birpFields");
-    return getVisible(birpBox) ? "birp" : "soap";
-  }
-
-  function getSOAPPayload() {
+  function collectSOAP(){
     return {
-      patient: ($("patient") || {}).value || "",
-      chiefComplaint: ($("chiefComplaint") || {}).value || "",
-      hpi: ($("hpi") || {}).value || "",
-      pmh: ($("pmh") || {}).value || "",
-      fh: ($("fh") || {}).value || "",
-      sh: ($("sh") || {}).value || "",
-      ros: ($("ros") || {}).value || "",
-      vBP: ($("vBP") || {}).value || "",
-      vHR: ($("vHR") || {}).value || "",
-      vRR: ($("vRR") || {}).value || "",
-      vTemp: ($("vTemp") || {}).value || "",
-      vWeight: ($("vWeight") || {}).value || "",
-      vO2Sat: ($("vO2Sat") || {}).value || "",
-      diagnostics: ($("diagnostics") || {}).value || "",
-      exam: ($("exam") || {}).value || "",
-      useInference: !!(useInferenceEl && useInferenceEl.checked)
+      useInference: !!V('useInference'),
+      chiefComplaint: V('chiefComplaint'),
+      hpi: V('hpi'),
+      pmh: V('pmh'),
+      fh: V('fh'),
+      sh: V('sh'),
+      ros: V('ros'),
+      vBP: V('vBP'),
+      vHR: V('vHR'),
+      vRR: V('vRR'),
+      vTemp: V('vTemp'),
+      vWeight: V('vWeight'),
+      vO2Sat: V('vO2Sat'),
+      height: V('height'),
+      painScore: V('painScore'),
+      diagnostics: V('diagnostics'),
+      exam: V('exam'),
+      allergies: V('allergies'),
+      medications: V('medications')
     };
   }
 
-  function getBIRPPayload() {
+  function collectBIRP(){
     return {
-      behavior: ($("birpBehavior") || {}).value || "",
-      intervention: ($("birpIntervention") || {}).value || "",
-      response: ($("birpResponse") || {}).value || "",
-      plan: ($("birpPlan") || {}).value || "",
-      useInference: !!(useInferenceEl && useInferenceEl.checked)
+      useInference: !!V('useInference'),
+      birpBehavior: V('birpBehavior'),
+      birpIntervention: V('birpIntervention'),
+      birpResponse: V('birpResponse'),
+      birpPlan: V('birpPlan')
     };
   }
 
-  async function postJSON(url, payload) {
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.json();
-  }
-
-  async function onGenerate() {
-    if (outEl) outEl.textContent = "Generating…";
-    const noteType = getNoteType();
-
-    try {
-      if (noteType === "birp") {
-        const payload = getBIRPPayload();
-        const data = await postJSON("/api/generate-birp", payload);
-        outEl.textContent = data.text || "";
-        return;
-      }
-
-      // default: SOAP
-      const payload = getSOAPPayload();
-      const data = await postJSON("/api/generate-soap-json-annotated", payload);
-      outEl.textContent = data.text || "";
-    } catch (e) {
-      if (outEl) outEl.textContent = `Error: ${e.message || e}`;
-      console.error(e);
+  async function onGenerate(){
+    var fmt = (V('noteType')||'SOAP').toUpperCase();
+    setTitle(fmt);
+    var body = (fmt==='BIRP') ? collectBIRP() : collectSOAP();
+    var url  = (fmt==='BIRP') ? '/api/birp'     : '/api/soap';
+    try{
+      const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      if (!res.ok) { setOut('Error generating note.'); return; }
+      const j = await res.json().catch(()=>({text:''}));
+      setOut(j.text || j.noteText || j.note || '');
+    }catch{
+      setOut('Error generating note.');
     }
   }
 
-  window.generateStable = async function () {
-    try {
-      const type = (typeof getNoteType === "function") ? getNoteType() : "soap";
-      if (type === "birp") {
-        const data = await postJSON("/api/generate-birp-json", getBIRPPayload());
-        if (outEl) outEl.textContent = (data && data.text) || "";
-        return (data && data.text) || "";
-      }
-      const data = await postJSON("/api/generate-soap-json-annotated", getSOAPPayload());
-      if (outEl) outEl.textContent = (data && data.text) || "";
-      return (data && data.text) || "";
-    } catch (e) {
-      if (outEl) outEl.textContent = `Error: ${e.message || e}`;
-      throw e;
-    }
-  };
+  function wire(){
+    var btn=$('btnGenerate'); if(!btn) return;
+    var clone=btn.cloneNode(true); btn.parentNode.replaceChild(clone,btn); clone.id='btnGenerate';
+    clone.addEventListener('click', onGenerate, {capture:true});
+  }
 
-  if (btnGenerate) btnGenerate.addEventListener("click", onGenerate);
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', wire, {once:true});
+  else wire();
 })();
-
-window.generateStable = async function () {
-  try {
-    const type = (typeof getNoteType === "function") ? getNoteType() : "soap";
-    if (type === "birp") {
-      const data = await postJSON("/api/generate-birp-json", getBIRPPayload());
-      if (typeof outEl !== "undefined" && outEl) outEl.textContent = (data && data.text) || "";
-      return (data && data.text) || "";
-    }
-    const data = await postJSON("/api/generate-soap-json-annotated", getSOAPPayload());
-    if (typeof outEl !== "undefined" && outEl) outEl.textContent = (data && data.text) || "";
-    return (data && data.text) || "";
-  } catch (e) {
-    const msg = (e && e.message) ? e.message : String(e);
-    if (typeof outEl !== "undefined" && outEl) outEl.textContent = `Error: ${msg}`;
-    console.error("generateStable failed:", e);
-    throw e;
-  }
-};
