@@ -1,4 +1,4 @@
-// ===== Notes UI logic =====
+// Notes UI logic 
 (function () {
   const $ = (id) => document.getElementById(id);
   const T = (id) => (($(id)?.value ?? '').trim());
