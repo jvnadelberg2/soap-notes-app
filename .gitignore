@@ -8,6 +8,7 @@ notes/
 _trash-*
 .DS_Store
 EOF
+*.log
 git add .gitignore
 git commit -m "Normalize .gitignore; remove conflict markers"
 git push
