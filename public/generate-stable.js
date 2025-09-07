@@ -80,5 +80,41 @@
     }
   }
 
+  window.generateStable = async function () {
+    try {
+      const type = (typeof getNoteType === "function") ? getNoteType() : "soap";
+      if (type === "birp") {
+        const data = await postJSON("/api/generate-birp-json", getBIRPPayload());
+        if (outEl) outEl.textContent = (data && data.text) || "";
+        return (data && data.text) || "";
+      }
+      const data = await postJSON("/api/generate-soap-json-annotated", getSOAPPayload());
+      if (outEl) outEl.textContent = (data && data.text) || "";
+      return (data && data.text) || "";
+    } catch (e) {
+      if (outEl) outEl.textContent = `Error: ${e.message || e}`;
+      throw e;
+    }
+  };
+
   if (btnGenerate) btnGenerate.addEventListener("click", onGenerate);
 })();
+
+window.generateStable = async function () {
+  try {
+    const type = (typeof getNoteType === "function") ? getNoteType() : "soap";
+    if (type === "birp") {
+      const data = await postJSON("/api/generate-birp-json", getBIRPPayload());
+      if (typeof outEl !== "undefined" && outEl) outEl.textContent = (data && data.text) || "";
+      return (data && data.text) || "";
+    }
+    const data = await postJSON("/api/generate-soap-json-annotated", getSOAPPayload());
+    if (typeof outEl !== "undefined" && outEl) outEl.textContent = (data && data.text) || "";
+    return (data && data.text) || "";
+  } catch (e) {
+    const msg = (e && e.message) ? e.message : String(e);
+    if (typeof outEl !== "undefined" && outEl) outEl.textContent = `Error: ${msg}`;
+    console.error("generateStable failed:", e);
+    throw e;
+  }
+};
