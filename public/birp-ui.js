@@ -41,6 +41,8 @@ END:BEGIN:ARCH-COMMENT */
       specialty: $('#specialty')?.value?.trim() || '',
       clinician: $('#provider')?.value?.trim() || '',
       clinic: $('#clinic')?.value?.trim() || '',
+      useInference: !!document.getElementById('useInference')?.checked,
+};
     };
 
     let resp;
