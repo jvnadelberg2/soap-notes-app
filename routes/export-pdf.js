@@ -1,88 +1,44 @@
-'use strict';
-
 const express = require('express');
-const { renderNotePDF } = require('../services/pdf');
-const store = require('../services/store');
+const path = require('path');
+const fs = require('fs');
+const { renderNotePdf } = require('../services/pdf');
 
 const router = express.Router();
 
-/**
- * GET /notes/:id/pdf
- * Generates the PDF on the fly from the note in the store.
- * Accepts ?format=soap|birp (case-insensitive).
- * Tries id, then falls back to matching code/uuid in case the table shows a different field.
- */
-router.get('/notes/:id/pdf', async (req, res) => {
+router.post('/export-pdf', async (req, res) => {
   try {
-    const id = req.params.id;
-    const fmt = String(req.query.format || 'soap').toUpperCase();
+    const { id, header = {}, data = {}, meta = {} } = req.body || {};
+    const noteId = id || `note_${Date.now()}`;
+    const outDir = path.join(process.cwd(), 'notes');
+    const outFile = path.join(outDir, `${noteId}.pdf`);
+    fs.mkdirSync(outDir, { recursive: true });
 
-    // Primary: direct lookup
-    let note = await store.getNoteById(id);
+    const result = await renderNotePdf({ id: noteId, header, data, meta }, outFile);
 
-    // Fallback: sometimes the list shows a different key ("code" or "uuid")
-    if (!note) {
-      const list = await store.listNotes().catch(() => []);
-      note = list.find(
-        (n) => n && (n.id === id || n.code === id || n.uuid === id)
-      );
-    }
-
-    if (!note) {
-      return res
-        .status(404)
-        .json({ error: { code: 'NOT_FOUND', message: 'Note not found' } });
-    }
-
-    const buf = await renderNotePDF(note, { format: fmt });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${id}.pdf"`);
-    res.send(buf);
+    return res.status(200).json({
+      ok: true,
+      id: noteId,
+      file: `/api/notes/${noteId}/pdf`,
+      meta: {
+        pages: result.pages,
+        jsonHash: result.jsonHash,
+        pdfHash: result.pdfHash,
+        version: result.version,
+        finalizedAt: result.finalizedAt
+      }
+    });
   } catch (e) {
-    console.error('PDF render failed:', e);
-    res.status(500).json({ error: { code: 'PDF_FAILED' } });
+    return res.status(500).json({ error: { code: 'PDF_EXPORT_FAILED', message: e.message } });
   }
 });
 
-/**
- * POST /export-pdf
- * Optional legacy endpoint: accepts { id, format } or a raw note in the body.
- */
-router.post('/export-pdf', async (req, res) => {
-  try {
-    const { id, format } = req.body || {};
-    const fmt = String(format || 'soap').toUpperCase();
-
-    let note = null;
-    if (id) {
-      note = await store.getNoteById(id);
-      if (!note) {
-        const list = await store.listNotes().catch(() => []);
-        note = list.find(
-          (n) => n && (n.id === id || n.code === id || n.uuid === id)
-        );
-      }
-    } else if (req.body && req.body.note) {
-      note = req.body.note;
-    } else {
-      note = req.body || null;
-    }
-
-    if (!note) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND' } });
-    }
-
-    const buf = await renderNotePDF(note, { format: fmt });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${(note.id || id || 'note')}.pdf"`
-    );
-    res.send(buf);
-  } catch (e) {
-    console.error('PDF export failed:', e);
-    res.status(500).json({ error: { code: 'PDF_FAILED' } });
-  }
+router.get('/notes/:id/pdf', async (req, res) => {
+  const noteId = req.params.id;
+  const file = path.join(process.cwd(), 'notes', `${noteId}.pdf`);
+  if (!fs.existsSync(file)) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'PDF not found' } });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${noteId}.pdf"`);
+  fs.createReadStream(file).pipe(res);
 });
 
 module.exports = router;
