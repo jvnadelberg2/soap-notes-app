@@ -45,7 +45,7 @@
     .btns .button { min-width:120px }
 
     pre#soapTextOut {
-      min-height:120px; max-height:24vh; overflow:auto; background:#fff; color:#111;
+      min-height:40vh; max-height:75vh; overflow:auto; background:#fff; color:#111;
       border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px; margin:0;
       white-space:pre-wrap; word-break:break-word; font-family: Helvetica, Arial, sans-serif;
     }
@@ -92,19 +92,31 @@
             </div>
 
             <div class="section">
-              <h4>Note Settings</h4>
-              <div class="row cols-3">
-                <div><label for="model">Model</label><select id="model"><option value=""></option></select></div>
-                <div><label for="noteType">Note Type</label>
-                  <select id="noteType"><option value="SOAP">SOAP</option><option value="BIRP">BIRP</option></select>
-                </div>
-                <div style="display:flex;align-items:end">
-                  <label style="display:flex;gap:8px;align-items:center;margin:0">
-                    <input id="useInference" type="checkbox" checked /> Use inference
-                  </label>
-                </div>
-              </div>
-            </div>
+  <h4>Note Settings</h4>
+  <div class="row cols-3">
+    <div>
+      <label for="model">Model</label>
+      <select id="model"><option value=""></option></select>
+    </div>
+    <div>
+      <label for="noteType">Note Type</label>
+      <select id="noteType">
+        <option value="SOAP">SOAP</option>
+        <option value="BIRP">BIRP</option>
+      </select>
+    </div>
+    <div>
+      <label for="specialty">Specialty</label>
+      <select id="specialty"><option value=""></option></select>
+    </div>
+    <div style="display:flex;align-items:end; margin-top:6px;">
+      <label style="display:flex;gap:8px;align-items:center;margin:0">
+        <input id="useInference" type="checkbox" checked /> Use inference
+      </label>
+    </div>
+  </div>
+</div>
+
 
             <div class="section">
               <h4>Encounter</h4>
@@ -291,7 +303,7 @@
       </div>
 
       <div class="grid" id="rightCol">
- <div class="card" id="generatedNoteCard" style="height:3in; display:flex; flex-direction:column">
+ <div class="card" id="generatedNoteCard" style="height:4.5in; display:flex; flex-direction:column">
 
           
           <h3 id="generatedNoteTitle">SOAP Generation</h3>
@@ -316,10 +328,9 @@
   <section id="notes-ui" style="max-width:980px;margin:18px auto;">
     <input type="hidden" id="current-note-id" value="">
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-      <button id="btn-new-note" type="button">New</button>
       <button id="btn-save-note" type="button">Save</button>
-      <button id="btn-update-note" type="button" disabled>Update</button>
-      <button id="btn-refresh-list" type="button">Refresh List</button>
+      <button id="btn-search-notes" type="button">Search</button>
+      <button id="btn-clear-notes" class="button warn" type="button">Delete All</button>
     </div>
     <div style="margin:6px 0 10px 0;"><input id="notes-search" type="text" placeholder="Search notes"></div>
     <table>
@@ -331,16 +342,21 @@
   <script src="/fix-dropdowns.js?v=9101" defer></script>
   <script src="/app.js?v=1002" defer></script>
   <script src="/api-client.js?v=1" defer></script>
+  <script src="/generator-manager.js?v=1"></script>
   <script src="/soap-generator.js?v=1" defer></script>
   <script src="/generate-stable.js?v=12" defer></script>
   <script src="/persist-ui.js?v=3" defer></script>
   <script src="/ui-below-buttons.js?v=19" defer></script>
   <script src="/actions-stable.js?v=7006" defer></script>
   <script src="/clear-patient-info.js?v=2" defer></script>
+  <script src="/new-note-id-reset.js?v=1" defer></script>
   <script src="/ros-builder.js?v=6" defer></script>
   <script src="/pdf-export-wire.js" defer></script>
   <script src="/notes-ui.js" defer></script>
   <script src="/datetime-now.js" defer></script>
+  <script src="/specialties.js?v=1" defer></script>
+ <script src="/soap-specialty-inject.js?v=1" defer></script>
+
 
 
   <script defer>
@@ -365,5 +381,10 @@
     if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
   })();
   </script>
-</body>
-</html>
+  
+  <script src="/clear-notes.js?v=1" defer></script>
+  <script src="/save-guard.js?v=2" defer></script>
+  <script src="/search-notes.js?v=1" defer></script>
+  <script src="/specialty-loader.js?v=1" defer></script>
+</body></html>
+  <!-- This <script src="/ui-list-tweaks.js?v=1" defer></script>  -->

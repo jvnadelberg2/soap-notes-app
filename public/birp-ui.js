@@ -80,6 +80,6 @@ END:BEGIN:ARCH-COMMENT */
   document.addEventListener('DOMContentLoaded', () => {
     toggle();
     if (noteTypeEl) noteTypeEl.addEventListener('change', toggle);
-    if (genBtn) genBtn.addEventListener('click', onGenerateCapture, true); // capture to win when BIRP
+    if (genBtn) window.__birpBeforeGenerate = onGenerateCapture;; // capture to win when BIRP
   });
 })();
