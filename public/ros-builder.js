@@ -34,7 +34,8 @@
     'Psych',
     'Endo',
     'Heme/Lymph',
-    'Allergy/Immun'
+    'Allergy/Immun',
+    'skin/breast'
   ];
 
   // Text helpers

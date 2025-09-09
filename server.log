@@ -1,1 +1,20 @@
-SOAP Notes app ready at http://127.0.0.1:3002
+
+> therapist-notes-ai@0.1.0 start:5050
+> PORT=5050 node server.js
+
+/Users/jonnadelberg/projects/soap-notes-app/server.js:7
+app.use('/api', require('./routes/notes-api'));
+^
+
+ReferenceError: Cannot access 'app' before initialization
+    at Object.<anonymous> (/Users/jonnadelberg/projects/soap-notes-app/server.js:7:1)
+    at Module._compile (node:internal/modules/cjs/loader:1688:14)
+    at Object..js (node:internal/modules/cjs/loader:1820:10)
+    at Module.load (node:internal/modules/cjs/loader:1423:32)
+    at Function._load (node:internal/modules/cjs/loader:1246:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.18.0
