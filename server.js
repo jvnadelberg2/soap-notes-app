@@ -4,13 +4,18 @@
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
+
 const store = require('./services/store');
 const { renderNotePDF } = require('./services/pdf');
+const notesApi = require('./routes/notes-api');
+const exportPdf = require('./routes/export-pdf');
+const net = require('net');
+
 
 const app = express();
-const PORT = process.env.PORT || 5050;
+const PORT = Number(process.env.PORT) || 5050;
 
-const MODEL_API_URL = process.env.MODEL_API_URL || 'http://localhost:11434/v1/chat/completions';
+const MODEL_API_URL = (process.env.MODEL_API_URL || 'http://localhost:11434/v1/chat/completions').trim();
 const MODEL_NAME = process.env.MODEL_NAME || 'llama3.1:8b';
 
 app.use(express.json({ limit: '1mb' }));
@@ -18,12 +23,16 @@ app.use(express.json({ limit: '1mb' }));
 const publicDir = path.join(process.cwd(), 'public');
 app.use(express.static(publicDir));
 
-app.get('/health', (req, res) => {
+// mounts (routers)
+app.use('/api', notesApi);
+app.use('/', exportPdf);
+
+app.get('/health', (_req, res) => {
   const indexExists = fs.existsSync(path.join(publicDir, 'index.html'));
   res.json({ ok: true, publicDir, indexExists, modelApi: MODEL_API_URL, modelName: MODEL_NAME });
 });
 
-app.get('/api/models', async (req, res) => {
+app.get('/api/models', async (_req, res) => {
   try {
     const r = await fetch('http://localhost:11434/api/tags');
     if (r.ok) {
@@ -35,6 +44,68 @@ app.get('/api/models', async (req, res) => {
   res.json([MODEL_NAME, 'llama3.2:3b', 'llama3:70b', 'mistral:7b', 'qwen2:7b', 'phi3:mini']);
 });
 
+/* ---------- SPECIALTY DROPDOWN: server-side guarantee ---------- */
+
+// we will serve /specialties.js even if the file is missing
+const FALLBACK_SPECIALTIES_JS = `"use strict";(function(){var SPECIALTIES=[
+"Addiction Counselor","Addiction Medicine Physician","Advanced Practice Registered Nurse (APRN)","Allergy / Immunology Physician","Anesthesiologist","Audiologist","Cardiologist","Cardiothoracic Surgeon","Case Manager","Child & Adolescent Psychiatrist","Clinical Laboratory Scientist","Clinical Mental Health Counselor","Clinical Nurse Specialist","Clinical Psychologist","Clinical Social Worker","Coding and Billing Specialist","Colorectal Surgeon","Critical Care Physician / Intensivist","Cytopathologist","Dermatologist","Developmental-Behavioral Pediatrician","Dietitian","Emergency Medical Technician (EMT)","Emergency Medicine Physician","Endocrinologist","Family Medicine Physician","Forensic Pathologist","Gastroenterologist","General Surgeon","Geneticist (Medical)","Geriatrician","Gynecologic Oncologist","Hand Surgeon","Health Information Manager","Hematologist","Hematologist-Oncologist","Hospice & Palliative Medicine Specialist","Hospitalist","Infectious Disease Specialist","Internal Medicine Physician","Interventional Radiologist","Laboratory Technologist","Legal / Compliance Officer","Licensed Marriage and Family Therapist (LMFT)","Licensed Professional Clinical Counselor (LPCC)","Licensed Practical Nurse (LPN)","Licensed Vocational Nurse (LVN)","Maternal-Fetal Medicine Specialist","Medical Assistant","Medical Geneticist","Medical Oncologist","Medical Scribe","Neonatologist","Nephrologist","Neurologist","Neuropathologist","Neurosurgeon","Nuclear Medicine Physician","Nurse Anesthetist (CRNA)","Nurse Midwife (CNM)","Nurse Practitioner (NP)","Obstetrician / Gynecologist (OB/GYN)","Occupational Medicine Physician","Occupational Therapist (OT)","Ophthalmologist","Optometrist","Orthopedic Surgeon","Otolaryngologist (ENT)","Pain Medicine Specialist","Paramedic","Pathologist","Pediatric Cardiologist","Pediatric Endocrinologist","Pediatric Neurologist","Pediatric Oncologist","Pediatric Pulmonologist","Pediatrician","Pharmacist","Physical Medicine & Rehabilitation Physician","Physical Therapist (PT)","Physician Assistant (PA)","Plastic Surgeon","Preventive Medicine Physician","Primary Care Physician","Professional Counselor","Psychiatrist","Psychologist (Clinical)","Psychologist (Counseling)","Psychologist (Neuropsychology)","Pulmonologist","Radiation Oncologist","Radiologist (Diagnostic)","Recreational Therapist","Reproductive Endocrinologist / Infertility Specialist","Respiratory Therapist (RT)","Rheumatologist","Sleep Medicine Specialist","Speech-Language Pathologist (SLP)","Sports Medicine Physician","Substance Abuse Counselor","Thoracic Surgeon","Transplant Surgeon","Trauma Surgeon","Urologist","Vascular Surgeon"
+];function ensureField(){var sel=document.getElementById("specialty");if(sel)return sel;var field=document.createElement("div");field.className="field";field.id="specialty-field";var lbl=document.createElement("label");lbl.setAttribute("for","specialty");lbl.textContent="Specialty";sel=document.createElement("select");sel.id="specialty";sel.name="specialty";field.appendChild(lbl);field.appendChild(sel);var form=document.querySelector("form");if(form){if(form.firstElementChild){form.insertBefore(field,form.firstElementChild.nextSibling);}else{form.appendChild(field);}}else{document.body.insertBefore(field,document.body.firstChild);}return sel;}function populate(sel){sel.innerHTML="";for(var i=0;i<SPECIALTIES.length;i++){var s=SPECIALTIES[i];var o=document.createElement("option");o.value=s;o.textContent=s;sel.appendChild(o);}var def=localStorage.getItem("specialty")||SPECIALTIES[0];sel.value=def;}function boot(){var sel=ensureField();populate(sel);sel.addEventListener("change",function(){try{localStorage.setItem("specialty",sel.value);}catch(e){}},{passive:true});window.getSpecialty=function(){return sel.value||"";};}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot,{once:true});}else{boot();}})();`;
+
+app.get('/specialties.js', (req, res) => {
+  const f = path.join(publicDir, 'specialties.js');
+  if (fs.existsSync(f)) {
+    res.type('application/javascript');
+    return res.sendFile(f);
+  }
+  res.type('application/javascript').send(FALLBACK_SPECIALTIES_JS);
+});
+
+// inject the script tag into index.html on the fly so you don't need to edit the file
+function injectSpecialtyScript(html) {
+  if (!html) return html;
+  if (/specialties\.js/.test(html)) return html; // already there
+  return html.replace(/<\/body>\s*<\/html>/i, '  <script src="/specialties.js?v=1" defer></script>\n</body></html>');
+}
+
+/* ---------- Specialties API (optional, kept for compatibility) ---------- */
+app.get('/api/specialties', async (_req, res) => {
+  try {
+    const list = [
+      "Addiction Counselor","Addiction Medicine Physician","Advanced Practice Registered Nurse (APRN)",
+      "Allergy / Immunology Physician","Anesthesiologist","Audiologist","Cardiologist",
+      "Cardiothoracic Surgeon","Case Manager","Child & Adolescent Psychiatrist","Clinical Laboratory Scientist",
+      "Clinical Mental Health Counselor","Clinical Nurse Specialist","Clinical Psychologist","Clinical Social Worker",
+      "Coding and Billing Specialist","Colorectal Surgeon","Critical Care Physician / Intensivist","Cytopathologist",
+      "Dermatologist","Developmental-Behavioral Pediatrician","Dietitian","Emergency Medical Technician (EMT)",
+      "Emergency Medicine Physician","Endocrinologist","Family Medicine Physician","Forensic Pathologist",
+      "Gastroenterologist","General Surgeon","Geneticist (Medical)","Geriatrician","Gynecologic Oncologist",
+      "Hand Surgeon","Health Information Manager","Hematologist","Hematologist-Oncologist",
+      "Hospice & Palliative Medicine Specialist","Hospitalist","Infectious Disease Specialist",
+      "Internal Medicine Physician","Interventional Radiologist","Laboratory Technologist","Legal / Compliance Officer",
+      "Licensed Marriage and Family Therapist (LMFT)","Licensed Professional Clinical Counselor (LPCC)",
+      "Licensed Practical Nurse (LPN)","Licensed Vocational Nurse (LVN)","Maternal-Fetal Medicine Specialist",
+      "Medical Assistant","Medical Geneticist","Medical Oncologist","Medical Scribe","Neonatologist","Nephrologist",
+      "Neurologist","Neuropathologist","Neurosurgeon","Nuclear Medicine Physician","Nurse Anesthetist (CRNA)",
+      "Nurse Midwife (CNM)","Nurse Practitioner (NP)","Obstetrician / Gynecologist (OB/GYN)",
+      "Occupational Medicine Physician","Occupational Therapist (OT)","Ophthalmologist","Optometrist",
+      "Orthopedic Surgeon","Otolaryngologist (ENT)","Pain Medicine Specialist","Paramedic","Pathologist",
+      "Pediatric Cardiologist","Pediatric Endocrinologist","Pediatric Neurologist","Pediatric Oncologist",
+      "Pediatric Pulmonologist","Pediatrician","Pharmacist","Physical Medicine & Rehabilitation Physician",
+      "Physical Therapist (PT)","Physician Assistant (PA)","Plastic Surgeon","Preventive Medicine Physician",
+      "Primary Care Physician","Professional Counselor","Psychiatrist","Psychologist (Clinical)",
+      "Psychologist (Counseling)","Psychologist (Neuropsychology)","Pulmonologist","Radiation Oncologist",
+      "Radiologist (Diagnostic)","Recreational Therapist","Reproductive Endocrinologist / Infertility Specialist",
+      "Respiratory Therapist (RT)","Rheumatologist","Sleep Medicine Specialist","Speech-Language Pathologist (SLP)",
+      "Sports Medicine Physician","Substance Abuse Counselor","Thoracic Surgeon","Transplant Surgeon","Trauma Surgeon",
+      "Urologist","Vascular Surgeon"
+    ];
+    res.json({ specialties: list });
+  } catch {
+    res.json({ specialties: ["General Practice"] });
+  }
+});
+
+/* ---------- Model call helper ---------- */
 async function callModel({ system, user, temperature = 0.2 }) {
   const body = { model: MODEL_NAME, temperature, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] };
   const resp = await fetch(MODEL_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -43,7 +114,7 @@ async function callModel({ system, user, temperature = 0.2 }) {
     throw new Error(`Model API error ${resp.status}: ${t || resp.statusText}`);
   }
   const j = await resp.json();
-  const text = j?.choices?.[0]?.message?.content ?? '';
+  const text = j?.choices?.[0]?.message?.content ?? j?.choices?.[0]?.text ?? '';
   return (text || '').trim();
 }
 
@@ -57,7 +128,7 @@ function normalizeNone(txt){
   return t;
 }
 
-// SOAP helpers
+/* ---------- SOAP helpers ---------- */
 function computeSubjective(body){
   const cc  = s(body.chiefComplaint);
   const hpi = s(body.hpi);
@@ -155,6 +226,7 @@ ${normalizeNone(plan)}`;
 async function handleSoap(req, res){
   try{
     const useInference = !!req.body?.useInference;
+    const specialty = s(req.body?.specialty);
     const subj = computeSubjective(req.body || {});
     const obj  = computeObjective(req.body || {});
     const anyInput = hasAnyClinicalInput(req.body || {});
@@ -167,10 +239,11 @@ async function handleSoap(req, res){
     let assess = 'None provided.';
     let plan   = 'None provided.';
     if (anyInput) {
-      const system =
+      const base =
         'You are a clinical documentation assistant. Based ONLY on the provided Subjective and Objective text, ' +
         "write Assessment and Plan. Do not invent data. If insufficient information, return 'None provided.' " +
         'Return plain text with the two headings: Assessment, Plan. No markdown.';
+      const system = specialty ? `${base} The clinical specialty context is: ${specialty}.` : base;
       const user =
 `Subjective:
 ${subj}
@@ -206,7 +279,7 @@ app.post('/api/generate-soap-json-annotated', handleSoap);
 app.post('/api/generate_soap', handleSoap);
 app.post('/api/soap', handleSoap);
 
-// BIRP
+/* ---------- BIRP ---------- */
 function pick(body, keys){
   for (const k of keys) {
     const v = body?.[k];
@@ -251,103 +324,69 @@ ${normalizeNone(x.plan)}`;
 }
 async function handleBIRP(req, res){
   try{
-    const useInference = !!req.body?.useInference;
+    const useInference = !!(req.body && req.body.useInference);
     const fields = normalizeBIRP(req.body || {});
     const userShaped = shapedBIRPText(fields);
     if (!useInference) {
       return res.json({ ok:true, text:userShaped, noteText:userShaped, note:userShaped, ...fields });
     }
 
-    const system =
-      'You are a clinical documentation assistant. Produce a BIRP note with the sections Behavior, Intervention, Response, Plan. ' +
-      "Use ONLY details provided; if a section is missing, output 'None provided.' Return plain text with those four headings. " +
-      'Do not include markdown, bold text, or a title.';
+    const system = `You are a clinical documentation assistant. Produce a BIRP note with the sections Behavior, Intervention, Response, Plan. Use ONLY the details provided; if a section is missing, output 'None provided.' exactly for that section. Do not invent or infer. Keep the style clinical and concise.`;
 
     const user =
-`Behavior: ${fields.behavior || 'None provided.'}
-Intervention: ${fields.intervention || 'None provided.'}
-Response: ${fields.response || 'None provided.'}
-Plan: ${fields.plan || 'None provided.'}
+`Behavior:
+${normalizeNone(fields.behavior)}
 
-Output as plain text with exactly the four headings above. No extra text.`;
+Intervention:
+${normalizeNone(fields.intervention)}
 
-    let modelText = await callModel({ system, user, temperature: 0.1 });
+Response:
+${normalizeNone(fields.response)}
+
+Plan:
+${normalizeNone(fields.plan)}`;
+
+    const modelText = await callModel({ system, user, temperature: 0.1 });
     const parsed = parseBIRPSections(modelText || '');
 
-    const merged = {
-      behavior: fields.behavior || parsed.behavior || '',
-      intervention: fields.intervention || parsed.intervention || '',
-      response: fields.response || parsed.response || '',
-      plan: fields.plan || parsed.plan || ''
-    };
+    const text = shapedBIRPText({
+      behavior: parsed.behavior || fields.behavior || '',
+      intervention: parsed.intervention || '',
+      response: parsed.response || '',
+      plan: parsed.plan || ''
+    });
 
-    const finalText = shapedBIRPText(merged);
-    return res.json({ ok:true, text:finalText, noteText:finalText, note:finalText, ...merged });
-  } catch(e){
-    res.status(500).json({ ok:false, error:'Error generating BIRP note.' });
+    return res.json({ ok:true, text, noteText:text, note:text, ...fields });
+  } catch (e) {
+    console.error('BIRP generation failed:', e);
+    res.status(500).json({ error: 'BIRP generation failed' });
   }
 }
-['/api/generate-birp-json-annotated','/api/generate-birp','/api/birp'].forEach(p => app.post(p, handleBIRP));
 
-// Notes CRUD
-app.post('/api/notes', async (req, res) => {
-  try{
-    const saved = await store.saveNote(req.body || {});
-    res.status(201).json({ ok:true, id:saved.id, note:saved });
-  } catch(e){
-    res.status(500).json({ ok:false, error:{ code:'SAVE_ERROR', message:'Failed to save note' } });
-  }
-});
-app.put('/api/notes/:id', async (req, res) => {
-  try{
-    const updated = await store.updateNote(req.params.id, req.body || {});
-    if (!updated) return res.status(404).json({ ok:false, error:{ code:'NOT_FOUND', message:'Note not found' } });
-    res.json({ ok:true, note:updated });
-  } catch(e){
-    res.status(500).json({ ok:false, error:{ code:'UPDATE_ERROR', message:'Failed to update note' } });
-  }
-});
-app.get('/api/notes/:id', async (req, res) => {
-  try{
-    const n = await store.getNoteById(req.params.id);
-    if (!n) return res.status(404).json({ ok:false, error:{ code:'NOT_FOUND', message:'Note not found' } });
-    res.json({ ok:true, note:n });
-  } catch(e){
-    res.status(500).json({ ok:false, error:{ code:'LOAD_ERROR', message:'Failed to load note' } });
-  }
-});
-app.get('/api/notes', async (req, res) => {
-  try{
-    const list = await store.listNotes();
-    res.json({ ok:true, notes:list });
-  } catch(e){
-    res.status(500).json({ ok:false, error:{ code:'LIST_ERROR', message:'Failed to list notes' } });
-  }
-});
+app.post('/api/birp', handleBIRP);
 
-// PDF export
-app.get('/notes/:id/pdf', async (req, res) => {
-  try{
-    const noteId = req.params.id;
-    const note = await store.getNoteById(noteId);
-    if (!note) return res.status(404).json({ error:{ code:'NOT_FOUND', message:'Note not found' } });
-    const raw = (req.query.format || '').toString().trim().toLowerCase();
-    const format = raw === 'birp' ? 'birp' : 'soap';
-    const pdfBuffer = await renderNotePDF(note, { format });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="note-${noteId}-${format}.pdf"`);
-    res.status(200).send(pdfBuffer);
-  } catch(err){
-    res.status(500).json({ error:{ code:'PDF_ERROR', message:'Failed to generate PDF' } });
+async function startServer(desired) {
+  let p = Number(desired) || 5050;
+  for (let i = 0; i < 10; i++) {
+    try {
+      const server = await new Promise((resolve, reject) => {
+        const s = app.listen(p, () => resolve(s));
+        s.on('error', reject);
+      });
+      console.log('server listening on ' + p);
+      return server;
+    } catch (err) {
+      if (err && err.code === 'EADDRINUSE') {
+        console.warn('port ' + p + ' in use, trying ' + (p + 1));
+        p++;
+        continue;
+      }
+      throw err;
+    }
   }
-});
+  console.error('no available port starting at ' + desired);
+  process.exit(1);
+}
 
-app.get('/', (req, res) => {
-  const indexPath = path.join(publicDir, 'index.html');
-  if (fs.existsSync(indexPath)) return res.sendFile(indexPath);
-  res.status(404).send('index.html not found');
-});
+if (!module.parent) startServer(PORT);
 
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
