@@ -1,58 +1,96 @@
 'use strict';
 
 const fs = require('fs');
+const fsp = fs.promises;
 const path = require('path');
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const NOTES_FILE = path.join(DATA_DIR, 'notes.json');
 
-function ensure() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(NOTES_FILE)) fs.writeFileSync(NOTES_FILE, JSON.stringify({}), 'utf8');
+async function ensureStore() {
+  await fsp.mkdir(DATA_DIR, { recursive: true });
+  try {
+    await fsp.access(NOTES_FILE, fs.constants.F_OK);
+  } catch {
+    await writeAll([]);
+  }
 }
-function readAll() {
-  ensure();
-  const raw = fs.readFileSync(NOTES_FILE, 'utf8') || '{}';
-  try { return JSON.parse(raw); } catch { return {}; }
+
+async function readAll() {
+  await ensureStore();
+  try {
+    const raw = await fsp.readFile(NOTES_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    const arr = Array.isArray(parsed) ? parsed :
+                Array.isArray(parsed?.notes) ? parsed.notes : [];
+    return arr;
+  } catch {
+    return [];
+  }
 }
-function writeAll(obj) {
-  ensure();
+
+async function writeAll(list) {
+  const payload = JSON.stringify({ notes: list }, null, 2);
   const tmp = NOTES_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(obj, null, 2), 'utf8');
-  fs.renameSync(tmp, NOTES_FILE);
-}
-function genId() {
-  const t = Date.now().toString(36);
-  const r = Math.random().toString(36).slice(2, 8);
-  return `N_${t}_${r}`;
+  await fsp.writeFile(tmp, payload, 'utf8');
+  await fsp.rename(tmp, NOTES_FILE);
 }
 
-async function saveNote(note) {
-  const all = readAll();
-  const id = genId();
-  const now = new Date().toISOString();
-  all[id] = { id, createdAt: now, updatedAt: now, ...note };
-  writeAll(all);
-  return all[id];
+function newId() {
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+function nowISO() { return new Date().toISOString(); }
+
+async function saveNote(data) {
+  const list = await readAll();
+  const id = newId();
+  const createdAt = nowISO();
+  const updatedAt = createdAt;
+  const note = { id, createdAt, updatedAt, ...data };
+  list.unshift(note);
+  await writeAll(list);
+  return note;
 }
 
-async function updateNote(id, patch) {
-  const all = readAll();
-  if (!all[id]) return null;
-  const now = new Date().toISOString();
-  all[id] = { ...all[id], ...patch, id, updatedAt: now };
-  writeAll(all);
-  return all[id];
+async function updateNote(id, data) {
+  const list = await readAll();
+  const idx = list.findIndex(n => n.id === id);
+  if (idx === -1) return null;
+  const updated = { ...list[idx], ...data, id, updatedAt: nowISO() };
+  list[idx] = updated;
+  await writeAll(list);
+  return updated;
 }
 
 async function getNoteById(id) {
-  const all = readAll();
-  return all[id] || null;
+  const list = await readAll();
+  return list.find(n => n.id === id) || null;
 }
 
 async function listNotes() {
-  const all = readAll();
-  return Object.values(all).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  const list = await readAll();
+  list.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  return list;
 }
 
-module.exports = { saveNote, updateNote, getNoteById, listNotes };
+async function deleteNote(id) {
+  const list = await readAll();
+  const next = list.filter(n => n.id !== id);
+  if (next.length === list.length) return false;
+  await writeAll(next);
+  return true;
+}
+
+async function deleteAllNotes() {
+  await writeAll([]);
+  return true;
+}
+
+module.exports = {
+  saveNote,
+  updateNote,
+  getNoteById,
+  listNotes,
+  deleteNote,
+  deleteAllNotes
+};

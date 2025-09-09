@@ -92,31 +92,19 @@
             </div>
 
             <div class="section">
-  <h4>Note Settings</h4>
-  <div class="row cols-3">
-    <div>
-      <label for="model">Model</label>
-      <select id="model"><option value=""></option></select>
-    </div>
-    <div>
-      <label for="noteType">Note Type</label>
-      <select id="noteType">
-        <option value="SOAP">SOAP</option>
-        <option value="BIRP">BIRP</option>
-      </select>
-    </div>
-    <div>
-      <label for="specialty">Specialty</label>
-      <select id="specialty"><option value=""></option></select>
-    </div>
-    <div style="display:flex;align-items:end; margin-top:6px;">
-      <label style="display:flex;gap:8px;align-items:center;margin:0">
-        <input id="useInference" type="checkbox" checked /> Use inference
-      </label>
-    </div>
-  </div>
-</div>
-
+              <h4>Note Settings</h4>
+              <div class="row cols-3">
+                <div><label for="model">Model</label><select id="model"><option value=""></option></select></div>
+                <div><label for="noteType">Note Type</label>
+                  <select id="noteType"><option value="SOAP">SOAP</option><option value="BIRP">BIRP</option></select>
+                </div>
+                <div style="display:flex;align-items:end">
+                  <label style="display:flex;gap:8px;align-items:center;margin:0">
+                    <input id="useInference" type="checkbox" checked /> Use inference
+                  </label>
+                </div>
+              </div>
+            </div>
 
             <div class="section">
               <h4>Encounter</h4>
@@ -349,7 +337,6 @@
   <script src="/ui-below-buttons.js?v=19" defer></script>
   <script src="/actions-stable.js?v=7006" defer></script>
   <script src="/clear-patient-info.js?v=2" defer></script>
-  <script src="/new-note-id-reset.js?v=1" defer></script>
   <script src="/ros-builder.js?v=6" defer></script>
   <script src="/pdf-export-wire.js" defer></script>
   <script src="/notes-ui.js" defer></script>
@@ -383,8 +370,7 @@
   </script>
   
   <script src="/clear-notes.js?v=1" defer></script>
-  <script src="/save-guard.js?v=2" defer></script>
+  <script src="/save-guard.js?v=1" defer></script>
   <script src="/search-notes.js?v=1" defer></script>
   <script src="/specialty-loader.js?v=1" defer></script>
 </body></html>
-  <!-- This <script src="/ui-list-tweaks.js?v=1" defer></script>  -->

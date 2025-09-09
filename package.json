@@ -3,8 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "node server.js",
-    "start:5050": "PORT=5050 node server.js"
+    "start": "PORT=5050 node server.js",
+    "start:5050": "PORT=5050 node server.js",
+    "start:3000": "PORT=3000 node server.js",
+    "start:6060": "PORT=6060 node server.js",
+    "start:7777": "PORT=7777 node server.js"
   },
   "dependencies": {
     "ajv": "^8.17.1",
