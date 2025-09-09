@@ -1,245 +1,216 @@
-// ===== Notes UI logic =====
+// ===== Notes UI logic (single source of truth) =====
+
+function pretty(ts){
+  if(!ts) return '';
+  try{
+    var t = String(ts).trim().replace(' ', 'T');
+    var d = new Date(t);
+    if (isNaN(d)) return ts;
+    return d.toLocaleString([], {
+      year:'numeric', month:'short', day:'2-digit',
+      hour:'2-digit', minute:'2-digit'
+    }).replace(',', '');
+  }catch(e){ return ts; }
+}
+
 (function () {
+  'use strict';
+
+  // --- tiny utils ---
   const $ = (id) => document.getElementById(id);
-  const T = (id) => (($(id)?.value ?? '').trim());
-  const S = (id, v) => { if ($(id)) $(id).value = v ?? ''; };
-
-  function findFormatSelect() {
-    const byId = $('note-format');
-    if (byId) return byId;
-    // fallback: any <select> that has soap/birp
-    return Array.from(document.querySelectorAll('select')).find(s => {
-      const vals = Array.from(s.options).map(o => (o.value || '').toLowerCase());
-      return vals.includes('soap') || vals.includes('birp');
-    });
-  }
-  function getFormat() {
-    const sel = findFormatSelect();
-    const raw = (sel?.value || 'soap').toLowerCase();
-    return raw === 'birp' ? 'birp' : 'soap';
-  }
-
-  // Expose for PDF Export binding (Item A)
-  window.getCurrentNoteId = function getCurrentNoteId() {
-    return $('current-note-id')?.value || '';
+  const val = (id) => {
+    const el = $(id);
+    if (!el) return '';
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+      return (el.value || '').trim();
+    }
+    return (el.textContent || '').trim();
   };
+  const setVal = (id, v) => { const el = $(id); if (el) el.value = v == null ? '' : String(v); };
 
-  function showFieldsForFormat(fmt) {
-    const soap = $('soap-fields');
-    const birp = $('birp-fields');
-    if (soap) soap.style.display = (fmt === 'soap') ? '' : 'none';
-    if (birp) birp.style.display = (fmt === 'birp') ? '' : 'none';
+  // --- format helpers (SOAP / BIRP) ---
+  function getFormat() {
+    const el = $('noteType') || $('note-format');
+    return ((el && el.value) || 'SOAP').toUpperCase();
   }
+
+  // --- form <-> note mapping ---
+  const COMMON_FIELDS = [
+    'patient','mrn','dob','sex','provider','clinic','npi','location'
+  ];
+
+  const SOAP_FIELDS = [
+    'chiefComplaint','hpi','pmh','fh','sh','ros',
+    'vBP','vHR','vRR','vTemp','vWeight','vO2Sat','height','painScore',
+    'diagnostics','exam','allergies','medications'
+  ];
+
+  const BIRP_FIELDS = ['birpBehavior','birpIntervention','birpResponse','birpPlan'];
 
   function buildNoteFromForm() {
-    const fmt = getFormat();
-    const base = {
-      patientName: T('patientName'),
-      patientDob: T('patientDob'),
-      patientMrn: T('patientMrn'),
-      encounterDateTime: T('encounterDateTime'),
-      location: T('location'),
-      clinicianName: T('clinicianName'),
-      clinicianCredentials: T('clinicianCredentials'),
-      finalizedAt: T('finalizedAt')
-    };
-    if (fmt === 'birp') {
-      base.birp = {
-        behavior: T('birpBehavior'),
-        intervention: T('birpIntervention'),
-        response: T('birpResponse'),
-        plan: T('birpPlan')
-      };
+    const noteType = getFormat();
+    const note = { noteType };
+
+    COMMON_FIELDS.forEach(k => note[k] = val(k));
+
+    if (noteType === 'BIRP') {
+      BIRP_FIELDS.forEach(k => note[k] = val(k));
     } else {
-      base.soap = {
-        subjective: [
-          T('chiefComplaint') && `Chief Complaint: ${T('chiefComplaint')}`,
-          T('hpi') && `HPI: ${T('hpi')}`,
-          T('pmh') && `PMH: ${T('pmh')}`,
-          T('fh') && `FH: ${T('fh')}`,
-          T('sh') && `SH: ${T('sh')}`,
-          T('ros') && `ROS: ${T('ros')}`
-        ].filter(Boolean).join('\n'),
-        objective: [
-          (T('vBP')||T('vHR')||T('vRR')||T('vTemp')||T('vWeight')||T('vO2Sat')) &&
-            `BP: ${T('vBP')||'—'}, HR: ${T('vHR')||'—'}, RR: ${T('vRR')||'—'}, Temp: ${T('vTemp')||'—'}, Weight: ${T('vWeight')||'—'}, O2 Sat: ${T('vO2Sat')||'—'}`,
-          T('diagnostics') && `Diagnostics: ${T('diagnostics')}`,
-          T('exam') && `Exam: ${T('exam')}`
-        ].filter(Boolean).join('\n'),
-        assessment: T('soapAssessment'),
-        plan: T('soapPlan')
-      };
+      SOAP_FIELDS.forEach(k => note[k] = val(k));
     }
-    // Store a hint about the format used at save time (for listing)
-    base._format = fmt;
-    return base;
+
+    // generated text area
+    const out = $('soapTextOut');
+    note.text = out ? (out.textContent || '') : '';
+
+    // current id if any
+    const idEl = $('current-note-id');
+    if (idEl && idEl.value) note.id = idEl.value.trim();
+
+    return note;
   }
 
   function setFormFromNote(note) {
-    S('patientName', note.patientName);
-    S('patientDob', note.patientDob);
-    S('patientMrn', note.patientMrn);
-    S('encounterDateTime', note.encounterDateTime);
-    S('location', note.location);
-    S('clinicianName', note.clinicianName);
-    S('clinicianCredentials', note.clinicianCredentials);
-    S('finalizedAt', note.finalizedAt);
+    if (!note || typeof note !== 'object') return;
 
-    const fmt = (note._format || getFormat()).toLowerCase() === 'birp' ? 'birp' : 'soap';
-    const fmtSel = findFormatSelect();
-    if (fmtSel) fmtSel.value = fmt;
-    showFieldsForFormat(fmt);
+    const type = (note.noteType || 'SOAP').toUpperCase();
+    const typeEl = $('noteType') || $('note-format');
+    if (typeEl) typeEl.value = type;
 
-    if (fmt === 'birp') {
-      S('birpBehavior', note?.birp?.behavior);
-      S('birpIntervention', note?.birp?.intervention);
-      S('birpResponse', note?.birp?.response);
-      S('birpPlan', note?.birp?.plan);
-      // clear SOAP fields
-      ['chiefComplaint','hpi','pmh','fh','sh','ros','vBP','vHR','vRR','vTemp','vWeight','vO2Sat','diagnostics','exam','soapAssessment','soapPlan']
-        .forEach(id => S(id, ''));
+    COMMON_FIELDS.forEach(k => setVal(k, note[k] || ''));
+
+    if (type === 'BIRP') {
+      BIRP_FIELDS.forEach(k => setVal(k, note[k] || ''));
     } else {
-      // naive reverse-fill (we saved pre-shaped strings for subjective/objective)
-      const subj = (note?.soap?.subjective || '');
-      const obj  = (note?.soap?.objective || '');
-      // best effort: do not parse back; set whole fields where reasonable
-      S('chiefComplaint', '');
-      S('hpi', '');
-      S('pmh', '');
-      S('fh', '');
-      S('sh', '');
-      S('ros', '');
-      S('diagnostics', '');
-      S('exam', '');
-      S('vBP',''); S('vHR',''); S('vRR',''); S('vTemp',''); S('vWeight',''); S('vO2Sat','');
-
-      S('soapAssessment', note?.soap?.assessment);
-      S('soapPlan', note?.soap?.plan);
-
-      // put the entire shaped text into HPI/Exam buckets so the user sees content
-      if (subj) S('hpi', subj);
-      if (obj)  S('exam', obj);
-
-      // clear BIRP fields
-      ['birpBehavior','birpIntervention','birpResponse','birpPlan'].forEach(id => S(id, ''));
+      SOAP_FIELDS.forEach(k => setVal(k, note[k] || ''));
     }
+
+    const out = $('soapTextOut');
+    if (out) out.textContent = note.text || '';
+
+    const idEl = $('current-note-id');
+    if (idEl) idEl.value = note.id || '';
   }
 
-  async function saveNote() {
-    const payload = buildNoteFromForm();
-    const r = await fetch('/api/notes', {
-      method: 'POST',
+  // --- server API helpers ---
+  async function apiGet(url) {
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) throw new Error('GET ' + url + ' failed');
+    return r.json();
+  }
+  async function apiSend(url, method, body) {
+    const r = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(body)
     });
-    if (!r.ok) return alert('Save failed');
-    const j = await r.json();
-    $('current-note-id').value = j.id || j.note?.id || '';
-    $('btn-update-note').disabled = !$('current-note-id').value;
-    await refreshList();
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.ok === false) throw new Error(method + ' ' + url + ' failed');
     return j;
-    }
+  }
 
-  async function updateNote() {
-    const id = $('current-note-id').value;
-    if (!id) return alert('No note loaded to update.');
-    const payload = buildNoteFromForm();
-    const r = await fetch(`/api/notes/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!r.ok) return alert('Update failed');
-    const j = await r.json();
+  // --- public actions ---
+  async function saveNote() {
+    const note = buildNoteFromForm();
+    if ('id' in note) delete note.id; // always create a new note
+    const j = await apiSend('/api/notes', 'POST', note);
+    if (j && (j.id || (j.note && j.note.id))) {
+      const idEl = $('current-note-id'); if (idEl) idEl.value = '';
+    }
     await refreshList();
-    return j;
+    return true;
   }
 
   async function loadNote(id) {
-    const r = await fetch(`/api/notes/${encodeURIComponent(id)}`);
-    if (!r.ok) return alert('Load failed');
-    const j = await r.json();
-    $('current-note-id').value = j.note?.id || '';
-    $('btn-update-note').disabled = !$('current-note-id').value;
-    setFormFromNote(j.note || {});
+    if (!id) return;
+    const j = await apiGet('/api/notes/' + encodeURIComponent(id) + '?_=' + Date.now());
+    if (j && j.ok && j.note) {
+      setFormFromNote(j.note);
+    }
   }
 
-  async function refreshList() {
-    const r = await fetch('/api/notes');
-    if (!r.ok) return;
-    const j = await r.json();
-    const tbody = $('notes-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    (j.notes || []).forEach(n => {
-      const tr = document.createElement('tr');
-      const idTd = document.createElement('td');
-      const ptTd = document.createElement('td');
-      const fmtTd = document.createElement('td');
-      const upTd = document.createElement('td');
-      const actTd = document.createElement('td');
+  function refreshList() {
+    return (async () => {
+      const j = await apiGet('/api/notes').catch(() => ({ notes: [] }));
+      const list = Array.isArray(j.notes) ? j.notes : [];
+      const tbody = $('notes-tbody'); if (!tbody) return;
+      tbody.innerHTML = '';
 
-      idTd.textContent = n.id;
-      ptTd.textContent = n.patientName || '';
-      fmtTd.textContent = (n._format || 'soap').toUpperCase();
-      upTd.textContent = n.updatedAt || n.createdAt || '';
+      const fmtSelect = $('noteType') || $('note-format');
 
-      const loadBtn = document.createElement('button');
-      loadBtn.textContent = 'Load';
-      loadBtn.addEventListener('click', () => loadNote(n.id));
+      list.forEach(n => {
+        const tr = document.createElement('tr');
 
-      const pdfSoap = document.createElement('a');
-      pdfSoap.href = `/notes/${encodeURIComponent(n.id)}/pdf?format=soap`;
-      pdfSoap.textContent = 'PDF SOAP';
-      pdfSoap.target = '_blank';
+        const tdId  = document.createElement('td'); tdId.textContent  = n.id || '';
+        const tdPt  = document.createElement('td'); tdPt.textContent  = n.patient || '';
+        const tdFmt = document.createElement('td'); tdFmt.textContent = (n.noteType || '').toUpperCase();
+        const tdUpd = document.createElement('td'); tdUpd.textContent = pretty(n.updatedAt || n.createdAt || '');
 
-      const pdfBirp = document.createElement('a');
-      pdfBirp.href = `/notes/${encodeURIComponent(n.id)}/pdf?format=birp`;
-      pdfBirp.textContent = 'PDF BIRP';
-      pdfBirp.target = '_blank';
+        const tdAct = document.createElement('td');
 
-      actTd.appendChild(loadBtn);
-      actTd.appendChild(document.createTextNode(' '));
-      actTd.appendChild(pdfSoap);
-      actTd.appendChild(document.createTextNode(' | '));
-      actTd.appendChild(pdfBirp);
+        // Load
+        const bLoad = document.createElement('button');
+        bLoad.textContent = 'Load';
+        bLoad.addEventListener('click', () => loadNote(n.id), { passive: true });
+        tdAct.appendChild(bLoad);
 
-      tr.appendChild(idTd);
-      tr.appendChild(ptTd);
-      tr.appendChild(fmtTd);
-      tr.appendChild(upTd);
-      tr.appendChild(actTd);
-      tbody.appendChild(tr);
-    });
+        // PDF (per-row)
+        const bPdf = document.createElement('button');
+        bPdf.textContent = 'PDF';
+        bPdf.style.marginLeft = '6px';
+        bPdf.addEventListener('click', () => {
+          const fmt = (fmtSelect?.value || 'soap').toLowerCase() === 'birp' ? 'birp' : 'soap';
+          const url = '/notes/' + encodeURIComponent(n.id) + '/pdf?format=' + encodeURIComponent(fmt);
+          window.open(url, '_blank');
+        }, { passive: true });
+        tdAct.appendChild(bPdf);
+
+        // DEL (per-row)
+        const bDel = document.createElement('button');
+        bDel.textContent = 'DEL';
+        bDel.style.marginLeft = '6px';
+        bDel.addEventListener('click', async () => {
+          if (!confirm('Delete this note?')) return;
+          const resp = await fetch('/api/notes/' + encodeURIComponent(n.id), { method: 'DELETE' });
+          if (!resp.ok) { alert('Delete failed'); return; }
+          const hid = document.getElementById('current-note-id');
+          if (hid && hid.value === n.id) hid.value = '';
+          await refreshList();
+        }, { passive: true });
+        tdAct.appendChild(bDel);
+
+        tr.appendChild(tdId);
+        tr.appendChild(tdPt);
+        tr.appendChild(tdFmt);
+        tr.appendChild(tdUpd);
+        tr.appendChild(tdAct);
+
+        tbody.appendChild(tr);
+      });
+    })();
   }
 
   function clearForm() {
-    $('current-note-id').value = '';
-    $('btn-update-note').disabled = true;
-    [
-      'patientName','patientDob','patientMrn','encounterDateTime','location',
-      'clinicianName','clinicianCredentials','finalizedAt',
-      'chiefComplaint','hpi','pmh','fh','sh','ros',
-      'vBP','vHR','vRR','vTemp','vWeight','vO2Sat','diagnostics','exam',
-      'soapAssessment','soapPlan',
-      'birpBehavior','birpIntervention','birpResponse','birpPlan'
-    ].forEach(id => { if ($(id)) $(id).value = ''; });
+    [...COMMON_FIELDS, ...SOAP_FIELDS, ...BIRP_FIELDS].forEach(k => setVal(k, ''));
+    const out = $('soapTextOut'); if (out) out.textContent = '';
+    const idEl = $('current-note-id'); if (idEl) idEl.value = '';
   }
 
   function wire() {
-    const fmtSel = findFormatSelect();
-    if (fmtSel) fmtSel.addEventListener('change', () => showFieldsForFormat(getFormat()));
-    $('btn-new-note')?.addEventListener('click', clearForm);
-    $('btn-save-note')?.addEventListener('click', saveNote);
-    $('btn-update-note')?.addEventListener('click', updateNote);
-    $('btn-refresh-list')?.addEventListener('click', refreshList);
-    showFieldsForFormat(getFormat());
+    const typeEl = $('noteType') || $('note-format');
+    if (typeEl) typeEl.addEventListener('change', () => refreshList(), { passive: true });
     refreshList();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', wire);
+    document.addEventListener('DOMContentLoaded', wire, { once: true });
   } else {
     wire();
   }
+
+  // Export for other scripts
+  window.saveNote = saveNote;
+  window.refreshList = refreshList;
+  window.loadNote = loadNote;
+  window.clearForm = clearForm;
 })();
