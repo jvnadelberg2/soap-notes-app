@@ -326,7 +326,7 @@
   </div>
 
   <section id="notes-ui" style="max-width:980px;margin:18px auto;">
-    <input type="hidden" id="current-note-id" value="">
+    <input type="hidden" id="current-note-uuid" value="">
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
       <button id="btn-save-note" type="button">Save</button>
       <button id="btn-search-notes" type="button">Search</button>
@@ -334,7 +334,7 @@
     </div>
     <div style="margin:6px 0 10px 0;"><input id="notes-search" type="text" placeholder="Search notes"></div>
     <table>
-      <thead><tr><th>ID</th><th>Patient</th><th>Format</th><th>Updated</th><th>Actions</th></tr></thead>
+      <thead><tr><th>UUID</th><th>Patient</th><th>Format</th><th>Updated</th><th>Actions</th></tr></thead>
       <tbody id="notes-tbody"></tbody>
     </table>
   </section>
@@ -386,6 +386,47 @@
   <script src="/save-guard.js?v=2" defer></script>
   <script src="/search-notes.js?v=1" defer></script>
   <script src="/specialty-loader.js?v=1" defer></script>
+
+<script>
+(function(){
+  var btn = document.getElementById('exportPdf');
+  if (!btn) return;
+
+  // Guard to avoid re-entrancy when we re-trigger the click
+  var firing = false;
+
+  btn.addEventListener('click', function(e){
+    if (firing) return; // allow the original handler to proceed on the retrigger
+    var hid = document.getElementById('current-note-uuid');
+    var uuid = hid && hid.value ? hid.value.trim() : '';
+
+    if (uuid && typeof window.loadNote === 'function') {
+      // Prevent the original export handler for a moment
+      e.stopPropagation();
+      e.preventDefault();
+
+      var maybePromise = null;
+      try { maybePromise = window.loadNote(uuid); } catch (_) {}
+
+      var retrigger = function(){
+        firing = true;
+        try { btn.click(); } finally { firing = false; }
+      };
+
+      if (maybePromise && typeof maybePromise.then === 'function') {
+        maybePromise.then(retrigger, retrigger);
+      } else {
+        // Give the DOM a tick to update if loadNote is sync
+        setTimeout(retrigger, 0);
+      }
+    }
+    // If no uuid or no loadNote, fall through to existing export behavior
+  }, true); // capturing phase so we run before the original handler
+})();
+</script>
+
+
+
 
 </body></html>
   <!-- This <script src="/ui-list-tweaks.js?v=1" defer></script>  -->
