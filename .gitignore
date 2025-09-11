@@ -10,3 +10,5 @@ server.log
 .env.*
 *.pem
 *.key
+
+keys/*.pem
