@@ -1,3 +1,12 @@
+/* BEGIN:ARCH-COMMENT
+File: services/retention.js
+Purpose: High-level description of this module in the SOAP/BIRP notes app.
+Endpoints: none detected
+Exports: pruneNotes, schedulePrune
+Notes: Exports a module API.
+Security: Applies middleware where wired; follow immutability rules for finalized notes.
+Observability: Increment metrics where relevant; return JSON errors.
+END:BEGIN:ARCH-COMMENT */
 'use strict';
 const fs = require('fs');
 const fsp = fs.promises;

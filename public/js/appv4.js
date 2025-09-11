@@ -1,3 +1,12 @@
+/* BEGIN:ARCH-COMMENT
+File: public/js/appv4.js
+Purpose: High-level description of this module in the SOAP/BIRP notes app.
+Endpoints: none detected
+Exports: none detected
+Notes:
+Security: Applies middleware where wired; follow immutability rules for finalized notes.
+Observability: Increment metrics where relevant; return JSON errors.
+END:BEGIN:ARCH-COMMENT */
 (function(){
   function id(x){ return document.getElementById(x); }
   function disciplineLabel(){
