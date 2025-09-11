@@ -84,3 +84,65 @@
     ready();
   }
 })();
+
+
+// === Finalize wiring (added) ===
+(function(){
+  const $ = (id) => document.getElementById(id);
+
+  function defaultSignedBy(){
+    const prov = ($('provider')?.value || '').trim();
+    const cred = ($('credentials')?.value || '').trim();
+    return cred ? `${prov}, ${cred}` : prov;
+  }
+  function maybePrefillSignedBy(){
+    const box = $('signedBy');
+    if (!box) return;
+    if (!box.value.trim()) box.value = defaultSignedBy();
+  }
+  document.addEventListener('DOMContentLoaded', maybePrefillSignedBy);
+  ['provider','credentials'].forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener('change', maybePrefillSignedBy);
+    if (el) el.addEventListener('blur',   maybePrefillSignedBy);
+  });
+
+  const btn = $('btn-finalize');
+  if (!btn) return;
+  async function finalizeNow(e){
+    e.preventDefault();
+    try {
+      btn.disabled = true;
+      if (typeof window.saveNote === 'function') await window.saveNote();
+
+      const uuid = ($('current-note-uuid')?.value || '').trim();
+      if (!uuid) { alert('No current note to finalize.'); return; }
+
+      const signedBy = ($('signedBy')?.value || defaultSignedBy()).trim();
+      const attestationText = ($('attestationText')?.value || '').trim();
+
+      const r = await fetch('/api/notes/' + encodeURIComponent(uuid) + '/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signedBy, attestationText })
+      });
+      if (!r.ok){
+        let code = '' + r.status;
+        try { const j = await r.json(); if (j && j.error && j.error.code) code = j.error.code; } catch(_){}
+        alert('Finalize failed: ' + code);
+        return;
+      }
+      const j = await r.json();
+      if ($('finalizedAt')) $('finalizedAt').value = j.note?.finalizedAt || new Date().toISOString();
+      if (typeof window.refreshList === 'function') await window.refreshList();
+      alert('Note finalized.');
+    } catch (err) {
+      console.error('Finalize failed', err);
+      alert('Finalize failed.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  btn.addEventListener('click', finalizeNow, { passive:false });
+})();
+// === End Finalize wiring ===

@@ -1,82 +1,128 @@
 'use strict';
-
 (function(){
-  if (window.__EXPORT_WIRED__) return; window.__EXPORT_WIRED__ = true;
+  var btn = document.getElementById('export-pdf')
+        || document.getElementById('exportPdf')
+        || document.getElementById('exportPdfBtn')
+        || document.querySelector('[data-action="export-pdf"]');
+  if (!btn) return;
 
   function $(id){ return document.getElementById(id); }
-  function getCurrentId(){ var el=$('current-note-id'); return el ? (el.value||'') : ''; }
-  function noteFormat(){
-    var sel = $('noteType'); var v = sel ? (sel.value || '').toLowerCase() : 'soap';
-    return v === 'birp' ? 'birp' : 'soap';
+  function getVal(el){
+    if (!el) return '';
+    if ('value' in el) return (el.value || '').trim();
+    return (el.textContent || '').trim();
   }
-  function genUUID(){
-    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){
-      var r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8);
-      return v.toString(16);
+  function val(id){ var el=$(id); return el ? (el.value||'').trim() : ''; }
+
+  function getNoteText(){
+    var ids = [
+      'soapTextOut','birpTextOut','generatedNote','noteOutput','noteText',
+      'note-text','noteTextOutArea'
+    ];
+    for (var i=0;i<ids.length;i++){
+      var t = getVal($(ids[i]));
+      if (t) return t;
+    }
+    var ce = document.querySelector('[data-note-output]') || document.querySelector('[contenteditable][id*="note"]');
+    if (ce){
+      var t2 = getVal(ce);
+      if (t2) return t2;
+    }
+    var ta = document.querySelector('textarea[name="note"],textarea[name="noteText"],textarea[id*="note"]');
+    if (ta){
+      var t3 = getVal(ta);
+      if (t3) return t3;
+    }
+    return '';
+  }
+
+  function getNoteType(){
+    var el = $('noteType') || $('note-format');
+    var v = (el && el.value) ? String(el.value) : 'SOAP';
+    v = v.toUpperCase();
+    return (v === 'BIRP') ? 'BIRP' : 'SOAP';
+  }
+
+  function getUuidMaybe(){
+    var a = $('current-note-uuid');
+    if (a && a.value && a.value.trim()) return a.value.trim();
+    var b = $('current-note-id');
+    if (b && b.value && b.value.trim()) return b.value.trim();
+    return '';
+  }
+
+  async function exportDraftPdf(){
+    var noteType = getNoteType();
+    var text = getNoteText();
+    if (!text){
+      alert('Generate a note first, then Export PDF.');
+      return;
+    }
+
+    // Header + clinical fields expected by the renderer
+    var payload = {
+      uuid: getUuidMaybe(),
+      noteType: noteType,
+      text: text,
+
+      // Header
+      patient: val('patient'),
+      dob: val('dob'),
+      sex: val('sex'),
+      mrn: val('mrn'),
+      provider: val('provider'),
+      credentials: val('credentials'),
+      npi: val('npi'),
+      clinic: val('clinic'),
+      encounter: val('encounter'),
+      encounterType: val('encounterType'),
+      telePlatform: val('telePlatform'),
+      teleConsent: val('teleConsent'),
+
+      // Subjective fallbacks (used if parser can’t extract sections)
+      chiefComplaint: val('chiefComplaint'),
+      hpi: val('hpi'),
+      pmh: val('pmh'),
+      fh: val('fh'),
+      sh: val('sh'),
+      ros: val('ros'),
+
+      // Objective fallbacks (vitals/exam/diagnostics)
+      vBP: val('vBP'),
+      vHR: val('vHR'),
+      vRR: val('vRR'),
+      vTemp: val('vTemp'),
+      vWeight: val('vWeight'),
+      vO2Sat: val('vO2Sat'),
+      height: val('height'),
+      painScore: val('painScore'),
+      exam: val('exam'),
+      diagnostics: val('diagnostics'),
+      medications: val('medications'),
+      allergies: val('allergies'),
+
+      format: (noteType === 'BIRP' ? 'birp' : 'soap')
+    };
+
+    var r = await fetch('/export/pdf', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
     });
-  }
-  function ensureDocUUIDField(){
-    var el = document.getElementById('document_uuid');
-    if (!el) {
-      el = document.createElement('input');
-      el.type = 'hidden';
-      el.id = 'document_uuid';
-      var anchor = $('current-note-id');
-      if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor.nextSibling);
-      else document.body.appendChild(el);
+    if (!r.ok){
+      var msg = 'PDF export failed';
+      try { var j = await r.json(); if (j && j.error && j.error.code) msg += ': ' + j.error.code; } catch(_){}
+      alert(msg);
+      return;
     }
-    return el;
-  }
-  function nextDocumentUUID(){
-    var el = ensureDocUUIDField();
-    el.value = genUUID();
-    return el.value;
-  }
-  function getNoteUUID(){
-    var el = document.getElementById('note_uuid');
-    return el ? (el.value||'') : '';
+    var blob = await r.blob();
+    var url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
   }
 
-  function buildPdfUrl(id){
-    var fmt = noteFormat();
-    var docUuid = nextDocumentUUID();        // new per-export UUID
-    var noteUuid = getNoteUUID();            // stable per-note UUID if you set it elsewhere
-    var url = '/notes/'+encodeURIComponent(id)+'/pdf?format='+encodeURIComponent(fmt)
-            + '&document_uuid=' + encodeURIComponent(docUuid);
-    if (noteUuid) url += '&note_uuid=' + encodeURIComponent(noteUuid);
-    return url;
-  }
-
-  async function onExport(){
-    var id = getCurrentId();
-    if (!id) { alert('Save the note first.'); return; }
-    var url = buildPdfUrl(id);
-    window.open(url, '_blank');
-  }
-
-  function wire(){
-    // Grab the existing Export PDF button by id or by label
-    var btn = $('exportPdf');
-    if (!btn) {
-      var candidates = Array.prototype.slice.call(document.querySelectorAll('button'));
-      btn = candidates.find(function(b){ return /export\s*pdf/i.test((b.textContent||'')); }) || null;
-    }
-    if (!btn) return;
-
-    // Replace to ensure our handler runs first
-    var clone = btn.cloneNode(true);
-    btn.parentNode.replaceChild(clone, btn);
-    clone.id = 'exportPdf';
-    clone.addEventListener('click', onExport, {capture:true});
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire, {once:true});
-  else wire();
-
-  // Optional: expose getter so other code (e.g., FHIR export) can reuse the same per-export UUID if desired
-  window.getDocumentUUID = function(){
-    var el = document.getElementById('document_uuid');
-    return el && el.value ? el.value : nextDocumentUUID();
-  };
+  btn.addEventListener('click', function(e){
+    e.preventDefault();
+    exportDraftPdf();
+  }, { passive: false });
 })();

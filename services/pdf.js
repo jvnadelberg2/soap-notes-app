@@ -2,6 +2,7 @@
 
 const PDFDocument = require('pdfkit');
 
+// ---------- small utils ----------
 const nz = x => (x ?? '').toString();
 const yes = x => !!(x && String(x).trim());
 const clean = x => nz(x).replace(/\s+/g, ' ').trim();
@@ -18,6 +19,7 @@ function ndate(s){
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+// ---------- SOAP helpers (fallbacks when no headings present) ----------
 function subjFromFields(n){
   const L = [];
   if (yes(n.chiefComplaint)) L.push(`Chief Complaint: ${clean(n.chiefComplaint)}`);
@@ -48,7 +50,8 @@ function objFromFields(n){
   return L.length ? L.join('\n') : 'None provided.';
 }
 
-function parseSections(text){
+// ---------- text parsers ----------
+function parseSectionsSOAP(text){
   const T = (text||'').replace(/\r\n/g,'\n');
   const out = {};
   ['Subjective','Objective','Assessment','Plan'].forEach(name=>{
@@ -63,6 +66,22 @@ function parseSections(text){
   return out;
 }
 
+function parseSectionsBIRP(text){
+  const T = (text||'').replace(/\r\n/g,'\n');
+  const out = {};
+  ['Behavior','Intervention','Response','Plan'].forEach(name=>{
+    const re = new RegExp(
+      String.raw`(?:^|\n)\s*${name}\s*:?\s*\n?` +
+      String.raw`([\s\S]*?)(?=(?:^|\n)\s*(?:Behavior|Intervention|Response|Plan)\s*:?\s*\n?|$)`,
+      'i'
+    );
+    const m = T.match(re);
+    if (m) out[name.toLowerCase()] = m[1].trim();
+  });
+  return out;
+}
+
+// ---------- drawing helpers ----------
 function heading(doc, txt, gap){
   if (gap) doc.moveDown(gap);
   doc.x = leftX(doc);
@@ -113,8 +132,8 @@ function header(doc, n, fmt){
   doc.y = Math.max(yL, yR) + 6;
 
   const enc = bullets([
-    yes(n.encounter)   && `Encounter: ${ndate(n.encounter)}`,
-    yes(n.finalizedAt) && `Finalized: ${ndate(n.finalizedAt)}`,
+    yes(n.encounter)     && `Encounter: ${ndate(n.encounter)}`,
+    yes(n.finalizedAt)   && `Finalized: ${ndate(n.finalizedAt)}`,
     yes(n.encounterType) && `Type: ${clean(n.encounterType)}`,
     yes(n.telePlatform)  && `Platform: ${clean(n.telePlatform)}`,
     yes(n.teleConsent)   && `Telehealth Consent: ${clean(n.teleConsent)}`
@@ -182,8 +201,10 @@ function footer(doc, n, pageNum, pageCount){
   doc.restore();
 }
 
+// ---------- bodies ----------
 function renderBodySOAP(doc, note){
-  const parsed = parseSections(note.noteText||'');
+  // Parse from body text; if missing, fall back to individual fields
+  const parsed = parseSectionsSOAP((note.noteText || note.text || '').replace(/\r\n/g,'\n'));
   const S = yes(parsed.subjective) ? parsed.subjective : subjFromFields(note);
   const O = yes(parsed.objective)  ? parsed.objective  : objFromFields(note);
   const A = yes(parsed.assessment) ? parsed.assessment : 'None provided.';
@@ -203,13 +224,29 @@ function renderBodySOAP(doc, note){
 }
 
 function renderBodyBIRP(doc, note){
-  const sec = (lbl, v) => { heading(doc, lbl, 0.6); doc.text(yes(v)?clean(v):'None provided.', leftX(doc), undefined, { width: cw(doc), align:'left' }); };
-  sec('Behavior', note.birpBehavior);
-  sec('Intervention', note.birpIntervention);
-  sec('Response', note.birpResponse);
-  sec('Plan', note.birpPlan);
+  // NEW: parse BIRP headings from body; fall back to explicit fields
+  const T = (note.noteText || note.text || '').replace(/\r\n/g,'\n');
+  const parsed = parseSectionsBIRP(T);
+
+  const B = yes(parsed.behavior)     ? parsed.behavior     : (yes(note.birpBehavior)     ? clean(note.birpBehavior)     : 'None provided.');
+  const I = yes(parsed.intervention) ? parsed.intervention : (yes(note.birpIntervention) ? clean(note.birpIntervention) : 'None provided.');
+  const R = yes(parsed.response)     ? parsed.response     : (yes(note.birpResponse)     ? clean(note.birpResponse)     : 'None provided.');
+  const P = yes(parsed.plan)         ? parsed.plan         : (yes(note.birpPlan)         ? clean(note.birpPlan)         : 'None provided.');
+
+  heading(doc, 'Behavior', 0.6);
+  doc.text(B, leftX(doc), undefined, { width: cw(doc), align:'left' });
+
+  heading(doc, 'Intervention', 0.6);
+  doc.text(I, leftX(doc), undefined, { width: cw(doc), align:'left' });
+
+  heading(doc, 'Response', 0.6);
+  doc.text(R, leftX(doc), undefined, { width: cw(doc), align:'left' });
+
+  heading(doc, 'Plan', 0.6);
+  doc.text(P, leftX(doc), undefined, { width: cw(doc), align:'left' });
 }
 
+// ---------- main ----------
 async function renderNotePDF(note, opts = {}) {
   const fmt = (opts.format || note.noteType || 'SOAP').toString().toUpperCase();
   return await new Promise((resolve, reject)=>{
@@ -219,16 +256,75 @@ async function renderNotePDF(note, opts = {}) {
     doc.on('end', ()=>resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
+    // Page 1 header + core body
     header(doc, note, fmt);
     if (fmt === 'BIRP') renderBodyBIRP(doc, note);
     else                renderBodySOAP(doc, note);
 
+    // ---------- Page 2+: supplements (print only if present) ----------
     const extras = [];
     if (yes(note.orders))      extras.push(`Orders: ${clean(note.orders)}`);
     if (yes(note.followUp))    extras.push(`Follow-up: ${clean(note.followUp)}`);
     if (yes(note.disposition)) extras.push(`Disposition: ${clean(note.disposition)}`);
-    if (extras.length){ heading(doc, 'Additional', 0.8); doc.text(extras.join('\n'), leftX(doc), undefined, { width: cw(doc), align:'left' }); }
 
+    const risk = [];
+    if (yes(note.riskLevel))          risk.push(`Risk Level: ${clean(note.riskLevel)}`);
+    if (yes(note.riskFactors))        risk.push(`Risk Factors: ${clean(note.riskFactors)}`);
+    if (yes(note.protectiveFactors))  risk.push(`Protective Factors: ${clean(note.protectiveFactors)}`);
+    if (yes(note.safetyPlan))         risk.push(`Safety Plan: ${clean(note.safetyPlan)}`);
+    if (yes(note.riskChange))         risk.push(`Risk Change: ${clean(note.riskChange)}`);
+
+    const scales = [];
+    if (yes(note.phq9Total)) scales.push(`PHQ-9: ${clean(note.phq9Total)}${ yes(note.phq9Date) ? ' ('+ndate(note.phq9Date)+')' : '' }`);
+    if (yes(note.gad7Total)) scales.push(`GAD-7: ${clean(note.gad7Total)}${ yes(note.gad7Date) ? ' ('+ndate(note.gad7Date)+')' : '' }`);
+
+    const participants = [];
+    if (yes(note.participants))      participants.push(`Participants: ${clean(note.participants)}`);
+    if (yes(note.interpreterUsed))   participants.push(`Interpreter: ${clean(note.interpreterUsed)}${ yes(note.interpreterName) ? ' — '+clean(note.interpreterName) : '' }`);
+    if (yes(note.patientLanguage))   participants.push(`Language: ${clean(note.patientLanguage)}`);
+
+    const tele = [];
+    if (yes(note.teleModality))      tele.push(`Modality: ${clean(note.teleModality)}`);
+    if (yes(note.patientLocation))   tele.push(`Patient Location: ${clean(note.patientLocation)}`);
+    if (yes(note.providerLocation))  tele.push(`Provider Location: ${clean(note.providerLocation)}`);
+    if (yes(note.vitalsSource))      tele.push(`Vitals Source: ${clean(note.vitalsSource)}`);
+
+    const coord = [];
+    if (yes(note.referralsCoordination)) coord.push(`Coordination: ${clean(note.referralsCoordination)}`);
+    if (yes(note.measurementPlan))      coord.push(`Measurement Plan: ${clean(note.measurementPlan)}`);
+    if (yes(note.nextAppt))             coord.push(`Next Appt: ${ndate(note.nextAppt)}`);
+    if (yes(note.patientEducation))     coord.push(`Patient Education: ${clean(note.patientEducation)}`);
+
+    const mdm = [];
+    if (yes(note.mdmProblems)) mdm.push(`MDM Problems: ${clean(note.mdmProblems)}`);
+    if (yes(note.mdmData))     mdm.push(`MDM Data: ${clean(note.mdmData)}`);
+    if (yes(note.mdmRisk))     mdm.push(`MDM Risk: ${clean(note.mdmRisk)}`);
+    // timeMinutes already appears in header bullets if present
+
+    const anySupp = extras.length || risk.length || scales.length || participants.length || tele.length || coord.length || mdm.length;
+
+    if (anySupp){
+      doc.addPage();
+      const section = (title, arr) => {
+        if (!arr || !arr.length) return;
+        heading(doc, title, 0.6);
+        doc.text(arr.join('\n'), leftX(doc), undefined, { width: cw(doc), align:'left' });
+      };
+
+      section('Risk & Safety', risk);
+      section('Scales & Scores', scales);
+      section('Participants & Language', participants);
+      section('Telehealth Details', tele);
+      section('Coordination & Next Steps', coord);
+      section('MDM (2021+ E/M)', mdm);
+
+      if (extras.length){
+        heading(doc, 'Additional', 0.6);
+        doc.text(extras.join('\n'), leftX(doc), undefined, { width: cw(doc), align:'left' });
+      }
+    }
+
+    // Footer on every page
     const range = doc.bufferedPageRange();
     for (let i = range.start; i < range.start + range.count; i++){
       doc.switchToPage(i);
