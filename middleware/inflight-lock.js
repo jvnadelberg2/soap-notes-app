@@ -1,3 +1,4 @@
+
 /* BEGIN:ARCH-COMMENT
 File: middleware/inflight-lock.js
 Purpose: High-level description of this module in the SOAP/BIRP notes app.
