@@ -1,3 +1,12 @@
+/* BEGIN:ARCH-COMMENT
+File: services/store.js
+Purpose: High-level description of this module in the SOAP/BIRP notes app.
+Endpoints: none detected
+Exports: listNotes, saveNote, updateNote, deleteNote,          // normal delete (blocked if finalized), getByUUID, upsertByUUID, finalizeNote, // optional admin helper, deleteNoteById,      // allows {force
+Notes: Exports a module API.
+Security: Applies middleware where wired; follow immutability rules for finalized notes.
+Observability: Increment metrics where relevant; return JSON errors.
+END:BEGIN:ARCH-COMMENT */
 'use strict';
 
 /**

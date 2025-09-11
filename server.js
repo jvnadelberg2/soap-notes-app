@@ -1,3 +1,12 @@
+/* BEGIN:ARCH-COMMENT
+File: server.js
+Purpose: High-level description of this module in the SOAP/BIRP notes app.
+Endpoints: GET /health, GET /admin/metrics, GET /api/models, GET /specialties.js, GET /api/specialties, POST /api/generate-soap-json-annotated, POST /api/generate_soap, POST /api/soap, POST /api/birp
+Exports: none detected
+Notes: Consistent JSON error responses. Persists via services/store. Generates PDFs via services/pdf.
+Security: Applies middleware where wired; follow immutability rules for finalized notes.
+Observability: Increment metrics where relevant; return JSON errors.
+END:BEGIN:ARCH-COMMENT */
 'use strict';
 
 const path = require('path');
