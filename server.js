@@ -1,18 +1,24 @@
 'use strict';
 
-// server.js  (CommonJS)
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
-
+const { checkSigningKeys } = require('./services/key-health');
+const { metricsMiddleware, metricsHandler } = require('./observability/metrics');
 const store = require('./services/store');
 const { renderNotePDF } = require('./services/pdf');
 const notesApi = require('./routes/notes-api');
 const exportPdf = require('./routes/export-pdf');
 const net = require('net');
-
-
 const app = express();
+const SK = checkSigningKeys();
+if (process.env.REQUIRE_SIGNING_KEYS === '1' && !SK.ok) {
+  console.error('[startup] signing keys missing:', SK.reasons.join('; '));
+  process.exit(1);
+} else if (!SK.ok) {
+  console.warn('[startup] signing keys not fully configured:', SK.reasons.join('; '));
+}
+app.use(metricsMiddleware());
 const PORT = Number(process.env.PORT) || 5050;
 
 const MODEL_API_URL = (process.env.MODEL_API_URL || 'http://localhost:11434/v1/chat/completions').trim();
@@ -29,6 +35,7 @@ app.use('/', exportPdf);
 
 app.get('/health', (_req, res) => {
   const indexExists = fs.existsSync(path.join(publicDir, 'index.html'));
+app.get('/admin/metrics', metricsHandler);
   res.json({ ok: true, publicDir, indexExists, modelApi: MODEL_API_URL, modelName: MODEL_NAME });
 });
 
@@ -390,3 +397,7 @@ async function startServer(desired) {
 
 if (!module.parent) startServer(PORT);
 
+
+app.use(require("./middleware/json-error"));
+
+app.use(require('./middleware/json-error'));
