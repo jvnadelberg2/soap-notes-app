@@ -1,3 +1,12 @@
+/* BEGIN:ARCH-COMMENT
+File: public/css/app.js
+Purpose: High-level description of this module in the SOAP/BIRP notes app.
+Endpoints: none detected
+Exports: none detected
+Notes:
+Security: Applies middleware where wired; follow immutability rules for finalized notes.
+Observability: Increment metrics where relevant; return JSON errors.
+END:BEGIN:ARCH-COMMENT */
 // --- Put Patient Complaint + History into SUBJECTIVE (safe wrapper) ---
 (function(){
   const d=document;

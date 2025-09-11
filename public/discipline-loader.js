@@ -1,3 +1,12 @@
+/* BEGIN:ARCH-COMMENT
+File: public/discipline-loader.js
+Purpose: High-level description of this module in the SOAP/BIRP notes app.
+Endpoints: none detected
+Exports: none detected
+Notes:
+Security: Applies middleware where wired; follow immutability rules for finalized notes.
+Observability: Increment metrics where relevant; return JSON errors.
+END:BEGIN:ARCH-COMMENT */
 (function(){
   function byId(id){ return document.getElementById(id); }
   function addOpt(sel,label){ if(!label) return; var o=document.createElement('option'); o.value=label; o.textContent=label; sel.appendChild(o); }
