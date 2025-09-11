@@ -1,77 +1,132 @@
 'use strict';
 
+const requireJSON = require('../middleware/require-json');
 const express = require('express');
+const router = express.Router();
 const store = require('../services/store');
 
-const router = express.Router();
+function normalizeBody(raw) {
+  const b = Object(raw || {});
+  const out = { ...b };
 
-// List notes
+  // UUID is enforced by route param; we set it explicitly in handler.
+  // Note type normalization
+  let nt = String(out.noteType || 'SOAP').toUpperCase();
+  if (nt !== 'SOAP' && nt !== 'BIRP') nt = 'SOAP';
+  out.noteType = nt;
+
+  // Text coalescing for export-readiness
+  const text = out.text ?? out.note ?? out.noteText ?? '';
+  out.text = String(text).replace(/\r\n/g, '\n').trim();
+
+  return out;
+}
+
+// List (UUID-first, strip internal id)
 router.get('/notes', async (_req, res) => {
   try {
     const notes = await store.listNotes();
-    res.json({ ok: true, notes });
+    const out = notes.map(n => {
+      const { id, ...rest } = n;
+      return rest;
+    });
+    res.json({ ok: true, notes: out });
   } catch (e) {
-    console.error('listNotes failed:', e);
-    res.status(500).json({ ok: false, error: { code: 'LIST_FAILED' } });
+    console.error('list notes failed:', e);
+    res.status(500).json({ ok: false });
   }
 });
 
-// Get one note
-router.get('/notes/:id', async (req, res) => {
+// Get by UUID (UUID-first, strip internal id)
+router.get('/notes/:uuid', async (req, res) => {
   try {
-    const note = await store.getNoteById(req.params.id);
+    const uuid = String(req.params.uuid || '').trim();
+    const all = await store.listNotes();
+    const note = all.find(n => n.uuid === uuid);
     if (!note) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND' } });
-    res.json({ ok: true, note });
+    const { id, ...rest } = note;
+    res.json({ ok: true, note: rest });
   } catch (e) {
-    console.error('getNote failed:', e);
-    res.status(500).json({ ok: false, error: { code: 'GET_FAILED' } });
+    console.error('get by uuid failed:', e);
+    res.status(500).json({ ok: false });
   }
 });
 
-// Create a note
-router.post('/notes', async (req, res) => {
+// Upsert by UUID (normalize into export-ready shape)
+router.put('/notes/:uuid', requireJSON, async (req, res) => {
   try {
-    const saved = await store.saveNote(req.body || {});
-    res.json({ ok: true, id: saved.id, note: saved });
+    const uuid = String(req.params.uuid || '').trim();
+    if (!uuid) return res.status(400).json({ ok: false, error: { code: 'BAD_UUID' } });
+
+    const now = new Date().toISOString();
+    const all = await store.listNotes();
+    const existing = all.find(n => n.uuid === uuid);
+
+    const body = normalizeBody(req.body || {});
+    body.uuid = uuid;
+
+    if (existing) {
+      if (existing.finalizedAt) {
+        return res.status(409).json({ ok: false, error: { code: 'FINALIZED_IMMUTABLE' } });
+      }
+      const patch = { ...body, updatedAt: now };
+      const updated = await store.updateNote(existing.id, patch);
+      const { id, ...rest } = updated;
+      return res.json({ ok: true, note: rest });
+    } else {
+      const toCreate = { ...body, createdAt: now, updatedAt: now };
+      const created = await store.saveNote(toCreate);
+      const { id, ...rest } = created;
+      return res.status(201).json({ ok: true, note: rest });
+    }
   } catch (e) {
-    console.error('saveNote failed:', e);
-    res.status(500).json({ ok: false, error: { code: 'SAVE_FAILED' } });
+    console.error('upsert by uuid failed:', e);
+    res.status(500).json({ ok: false });
   }
 });
 
-// Update a note
-router.put('/notes/:id', async (req, res) => {
+// Delete by UUID
+router.delete('/notes/:uuid', async (req, res) => {
   try {
-    const upd = await store.updateNote(req.params.id, req.body || {});
-    if (!upd) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND' } });
-    res.json({ ok: true, id: upd.id, note: upd });
-  } catch (e) {
-    console.error('updateNote failed:', e);
-    res.status(500).json({ ok: false, error: { code: 'UPDATE_FAILED' } });
-  }
-});
-
-// Delete one note
-router.delete('/notes/:id', async (req, res) => {
-  try {
-    const ok = await store.deleteNote(req.params.id);
-    if (!ok) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND' } });
-    res.json({ ok: true, id: req.params.id });
-  } catch (e) {
-    console.error('deleteNote failed:', e);
-    res.status(500).json({ ok: false, error: { code: 'DELETE_FAILED' } });
-  }
-});
-
-// Delete ALL notes (used by clear-all)
-router.delete('/notes', async (_req, res) => {
-  try {
-    await store.deleteAllNotes();
+    const uuid = String(req.params.uuid || '').trim();
+    const all = await store.listNotes();
+    const note = all.find(n => n.uuid === uuid);
+    if (!note) return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND' } });
+    if (note.finalizedAt) {
+      return res.status(409).json({ ok: false, error: { code: 'FINALIZED_IMMUTABLE' } });
+    }
+    await store.deleteNote(note.id);
     res.json({ ok: true });
   } catch (e) {
-    console.error('deleteAllNotes failed:', e);
-    res.status(500).json({ ok: false, error: { code: 'CLEAR_FAILED' } });
+    console.error('delete by uuid failed:', e);
+    res.status(500).json({ ok: false });
   }
 });
+
+// POST /api/notes/:uuid/finalize  → set finalizedAt and lock the note
+router.post('/notes/:uuid/finalize', async (req, res) => {
+  try {
+    const uuid = String(req.params.uuid || '').trim();
+    if (!uuid) return res.status(400).json({ ok:false, error:{ code:'BAD_UUID' }});
+
+    const current = await store.getByUUID(uuid);
+    if (!current) return res.status(404).json({ ok:false, error:{ code:'NOT_FOUND' }});
+    if (current.finalizedAt) {
+      return res.status(409).json({ ok:false, error:{ code:'FINALIZED_IMMUTABLE' }});
+    }
+
+    // Optional extras you might want to persist at finalize time
+    const extras = {};
+    const b = Object(req.body || {});
+    ['signedBy','attestationText'].forEach(k => { if (b[k]) extras[k] = String(b[k]); });
+
+    const updated = await store.finalizeNote(current.id, extras);
+    return res.json({ ok:true, note: updated });
+  } catch (e) {
+    console.error('finalize failed:', e);
+    return res.status(500).json({ ok:false, error:{ code:'FINALIZE_FAILED' }});
+  }
+});
+
 
 module.exports = router;

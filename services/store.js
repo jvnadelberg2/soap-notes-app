@@ -1,96 +1,246 @@
 'use strict';
 
+/**
+ * File-backed note store (CommonJS)
+ * - Public key:    uuid (string, comes from client/UI)
+ * - Internal key:  id   (short random string, server-only)
+ * - Guarantees:
+ *    • creates data file on first write
+ *    • atomic writes (temp + rename)
+ *    • uuid must be unique on create
+ *    • finalized notes cannot be updated or deleted
+ */
+
 const fs = require('fs');
-const fsp = fs.promises;
 const path = require('path');
+const crypto = require('crypto');
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+// ↓↓↓ REQUIRED: digital-signature helper for finalize() ↓↓↓
+const { signNote } = require('./signature'); // <-- make sure services/signature.js exists
+
+// ---------- storage paths ----------
+const DATA_DIR   = path.join(__dirname, '..', 'data');
 const NOTES_FILE = path.join(DATA_DIR, 'notes.json');
+const TMP_FILE   = path.join(DATA_DIR, 'notes.json.tmp');
 
-async function ensureStore() {
-  await fsp.mkdir(DATA_DIR, { recursive: true });
+// ---------- in-memory cache ----------
+let _loaded = false;
+let _notes  = []; // array of note objects
+
+// ---------- utils ----------
+const clone = (x) => JSON.parse(JSON.stringify(x ?? null));
+
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(NOTES_FILE)) fs.writeFileSync(NOTES_FILE, '[]', 'utf8');
+}
+
+function loadAll() {
+  if (_loaded) return;
+  ensureDataDir();
+  const raw = fs.readFileSync(NOTES_FILE, 'utf8');
   try {
-    await fsp.access(NOTES_FILE, fs.constants.F_OK);
+    const arr = JSON.parse(raw);
+    _notes = Array.isArray(arr) ? arr : [];
   } catch {
-    await writeAll([]);
+    _notes = [];
   }
+  _loaded = true;
 }
 
-async function readAll() {
-  await ensureStore();
-  try {
-    const raw = await fsp.readFile(NOTES_FILE, 'utf8');
-    const parsed = JSON.parse(raw);
-    const arr = Array.isArray(parsed) ? parsed :
-                Array.isArray(parsed?.notes) ? parsed.notes : [];
-    return arr;
-  } catch {
-    return [];
-  }
+function persistAll() {
+  ensureDataDir();
+  const buf = Buffer.from(JSON.stringify(_notes, null, 2));
+  fs.writeFileSync(TMP_FILE, buf);
+  fs.renameSync(TMP_FILE, NOTES_FILE);
 }
 
-async function writeAll(list) {
-  const payload = JSON.stringify({ notes: list }, null, 2);
-  const tmp = NOTES_FILE + '.tmp';
-  await fsp.writeFile(tmp, payload, 'utf8');
-  await fsp.rename(tmp, NOTES_FILE);
+function newId(len = 10) {
+  return crypto.randomBytes(Math.ceil(len * 0.75)).toString('base64url').slice(0, len);
 }
 
-function newId() {
-  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
-}
-function nowISO() { return new Date().toISOString(); }
-
-async function saveNote(data) {
-  const list = await readAll();
-  const id = newId();
-  const createdAt = nowISO();
-  const updatedAt = createdAt;
-  const note = { id, createdAt, updatedAt, ...data };
-  list.unshift(note);
-  await writeAll(list);
-  return note;
+function byUUID(uuid) {
+  const u = String(uuid || '').trim();
+  if (!u) return null;
+  return _notes.find(n => String(n.uuid || '').trim() === u) || null;
 }
 
-async function updateNote(id, data) {
-  const list = await readAll();
-  const idx = list.findIndex(n => n.id === id);
-  if (idx === -1) return null;
-  const updated = { ...list[idx], ...data, id, updatedAt: nowISO() };
-  list[idx] = updated;
-  await writeAll(list);
-  return updated;
-}
+// ---------- API ----------
 
-async function getNoteById(id) {
-  const list = await readAll();
-  return list.find(n => n.id === id) || null;
-}
-
+/**
+ * List notes (shallow filter/sort could be added here if you need)
+ */
 async function listNotes() {
-  const list = await readAll();
-  list.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-  return list;
+  loadAll();
+  return clone(_notes);
 }
 
+/**
+ * Create a new note.
+ * - Requires: obj.uuid (unique on create)
+ * - Sets: id, createdAt, updatedAt if not provided
+ */
+async function saveNote(obj) {
+  loadAll();
+
+  const uuid = String(obj?.uuid || '').trim();
+  if (!uuid) {
+    const err = new Error('uuid is required');
+    err.code = 'BAD_UUID';
+    throw err;
+  }
+  if (byUUID(uuid)) {
+    const err = new Error('uuid already exists');
+    err.code = 'UUID_EXISTS';
+    throw err;
+  }
+
+  const now = new Date().toISOString();
+  const note = {
+    id: newId(),
+    uuid,
+    createdAt: now,
+    updatedAt: now,
+    ...clone(obj)
+  };
+
+  _notes.push(note);
+  persistAll();
+  return clone(note);
+}
+
+/**
+ * Update an existing note by internal id.
+ * - Rejects if finalizedAt is set (immutable after finalize)
+ */
+async function updateNote(id, patch) {
+  loadAll();
+  const idx = _notes.findIndex(n => n.id === id);
+  if (idx < 0) {
+    const err = new Error('not found');
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  const cur = _notes[idx];
+  if (cur.finalizedAt) {
+    const err = new Error('finalized notes are immutable');
+    err.code = 'FINALIZED_IMMUTABLE';
+    throw err;
+  }
+
+  const next = { ...cur, ...clone(patch), updatedAt: new Date().toISOString() };
+  _notes[idx] = next;
+  persistAll();
+  return clone(next);
+}
+
+/**
+ * Delete a note by internal id.
+ * - Rejects if finalizedAt is set (immutable). Admin code (if any) can call deleteNoteById(id, {force:true})
+ */
 async function deleteNote(id) {
-  const list = await readAll();
-  const next = list.filter(n => n.id !== id);
-  if (next.length === list.length) return false;
-  await writeAll(next);
+  return deleteNoteById(id, { force: false });
+}
+
+/**
+ * Delete helper that can optionally force deletion (e.g., for admin-only dev cleanup).
+ */
+async function deleteNoteById(id, { force = false } = {}) {
+  loadAll();
+  const idx = _notes.findIndex(n => n.id === id);
+  if (idx < 0) {
+    const err = new Error('not found');
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  const cur = _notes[idx];
+  if (cur.finalizedAt && !force) {
+    const err = new Error('finalized notes are immutable');
+    err.code = 'FINALIZED_IMMUTABLE';
+    throw err;
+  }
+
+  _notes.splice(idx, 1);
+  persistAll();
   return true;
 }
 
-async function deleteAllNotes() {
-  await writeAll([]);
-  return true;
+/**
+ * Get a note by UUID (public identifier).
+ */
+async function getByUUID(uuid) {
+  loadAll();
+  const n = byUUID(uuid);
+  return n ? clone(n) : null;
 }
 
+/**
+ * Upsert by UUID.
+ * - If a note with the uuid exists and is NOT finalized → update it.
+ * - If none exists → create it.
+ * - If exists and finalized → error.
+ */
+async function upsertByUUID(uuid, patch) {
+  loadAll();
+  const cur = byUUID(uuid);
+  if (!cur) {
+    return saveNote({ uuid, ...clone(patch) });
+  }
+  if (cur.finalizedAt) {
+    const err = new Error('finalized notes are immutable');
+    err.code = 'FINALIZED_IMMUTABLE';
+    throw err;
+  }
+  return updateNote(cur.id, patch);
+}
+
+/**
+ * FINALIZE a note by internal id.
+ * - Stamps finalizedAt
+ * - Merges finalize-time fields (e.g., signedBy, attestationText)
+ * - Digitally signs the canonical payload (RSA-PSS over sorted JSON incl. uuid)
+ * - Locks the record (subsequent updates/deletes will be rejected unless forced by admin helper)
+ */
+async function finalizeNote(id, extras = {}) {
+  loadAll();
+  const idx = _notes.findIndex(n => n.id === id);
+  if (idx < 0) {
+    const err = new Error('not found');
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+  const note = _notes[idx];
+  if (note.finalizedAt) {
+    const err = new Error('finalized notes are immutable');
+    err.code = 'FINALIZED_IMMUTABLE';
+    throw err;
+  }
+
+  note.finalizedAt = new Date().toISOString();
+  Object.assign(note, clone(extras));
+
+  // ⬇️ This is the important call you asked about: sign the canonical note.
+  const sig = signNote(note);
+  note.signature = { signedAt: note.finalizedAt, ...sig };
+
+  _notes[idx] = note;
+  persistAll();
+  return clone(note);
+}
+
+// ---------- exports ----------
 module.exports = {
+  listNotes,
   saveNote,
   updateNote,
-  getNoteById,
-  listNotes,
-  deleteNote,
-  deleteAllNotes
+  deleteNote,          // normal delete (blocked if finalized)
+  getByUUID,
+  upsertByUUID,
+  finalizeNote,
+  // optional admin helper:
+  deleteNoteById,      // allows {force:true}
+  // test/tools
+  _unsafe_readAll: () => (loadAll(), clone(_notes)),
+  _unsafe_writeAll: (arr) => { _notes = clone(arr || []); _loaded = true; persistAll(); }
 };

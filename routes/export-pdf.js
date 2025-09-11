@@ -1,87 +1,174 @@
 'use strict';
 
 const express = require('express');
-const { renderNotePDF } = require('../services/pdf');
-const store = require('../services/store');
-
 const router = express.Router();
+const fs = require('fs');
+const crypto = require('crypto');
 
-/**
- * GET /notes/:id/pdf
- * Generates the PDF on the fly from the note in the store.
- * Accepts ?format=soap|birp (case-insensitive).
- * Tries id, then falls back to matching code/uuid in case the table shows a different field.
- */
-router.get('/notes/:id/pdf', async (req, res) => {
+const store = require('../services/store');
+const { renderNotePDF } = require('../services/pdf');
+
+function coalesceText(n) {
+  const t = (n && (n.text ?? n.note ?? n.noteText)) || '';
+  return String(t).replace(/\r\n/g, '\n').trim();
+}
+function sniffIsPdf(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 8) return false;
+  if (buf.subarray(0, 5).toString('ascii') !== '%PDF-') return false;
+  const tail = buf.subarray(Math.max(0, buf.length - 2048)).toString('latin1');
+  return /%%EOF\s*$/.test(tail);
+}
+async function asBuffer(result) {
+  if (!result) return null;
+  if (Buffer.isBuffer(result.buffer)) return result.buffer;
+  if (Buffer.isBuffer(result)) return result;
+  if (typeof result.base64 === 'string') {
+    try { return Buffer.from(result.base64, 'base64'); } catch {}
+  }
+  const p = result.path || result.file;
+  if (p && fs.existsSync(p)) return fs.readFileSync(p);
+  if (result.stream && typeof result.stream.pipe === 'function') {
+    const chunks = [];
+    await new Promise((resolve, reject) => {
+      result.stream.on('data', c => chunks.push(c));
+      result.stream.on('error', reject);
+      result.stream.on('end', resolve);
+    });
+    return Buffer.concat(chunks);
+  }
+  if (typeof result === 'string') {
+    try {
+      const b = Buffer.from(result, 'base64');
+      if (b.length > 0) return b;
+    } catch {}
+    if (fs.existsSync(result)) return fs.readFileSync(result);
+  }
+  return null;
+}
+
+// ---------- PER-ROW (saved) PDF: GET /notes/:uuid/pdf ----------
+router.get('/notes/:uuid/pdf', async (req, res) => {
   try {
-    const id = req.params.id;
-    const fmt = String(req.query.format || 'soap').toUpperCase();
+    const uuid = String(req.params.uuid || '').trim();
+    const all = await store.listNotes();
+    const note = all.find(n => n.uuid === uuid);
+    if (!note) return res.status(404).json({ ok:false, error:{ code:'NOT_FOUND' }});
 
-    // Primary: direct lookup
-    let note = await store.getNoteById(id);
+    const noteType = String(note.noteType || 'SOAP').toUpperCase();
+    const format = (String(req.query.format || '').toLowerCase() === 'birp' || noteType === 'BIRP') ? 'birp' : 'soap';
+    const text = coalesceText(note);
 
-    // Fallback: sometimes the list shows a different key ("code" or "uuid")
-    if (!note) {
-      const list = await store.listNotes().catch(() => []);
-      note = list.find(
-        (n) => n && (n.id === id || n.code === id || n.uuid === id)
-      );
-    }
+    if (!text) return res.status(422).json({ ok:false, error:{ code:'MISSING_TEXT', detail:'note has no exportable text' }});
+    if (noteType !== 'SOAP' && noteType !== 'BIRP') return res.status(422).json({ ok:false, error:{ code:'BAD_NOTE_TYPE' }});
 
-    if (!note) {
-      return res
-        .status(404)
-        .json({ error: { code: 'NOT_FOUND', message: 'Note not found' } });
-    }
+    const normalized = { ...note, noteType, text };
+    const exportUuid = crypto.randomUUID();
 
-    const buf = await renderNotePDF(note, { format: fmt });
+    const rendered = await renderNotePDF(normalized, { format, uuid, exportUuid });
+    const pdfBuffer = await asBuffer(rendered);
+    if (!pdfBuffer || !sniffIsPdf(pdfBuffer)) return res.status(500).json({ ok:false, error:{ code:'PDF_INVALID_BYTES' }});
+
+    const filename = (rendered && rendered.filename) ? rendered.filename : `${uuid}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${id}.pdf"`);
-    res.send(buf);
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Content-Length', String(pdfBuffer.length));
+    res.end(pdfBuffer);
   } catch (e) {
-    console.error('PDF render failed:', e);
-    res.status(500).json({ error: { code: 'PDF_FAILED' } });
+    console.error('pdf export (saved) failed:', e);
+    if (!res.headersSent) res.status(500).json({ ok:false, error:{ code:'PDF_FAILED' }}); else res.end();
   }
 });
 
-/**
- * POST /export-pdf
- * Optional legacy endpoint: accepts { id, format } or a raw note in the body.
- */
-router.post('/export-pdf', async (req, res) => {
+// ---------- IN-MEMORY (draft) PDF: POST /export/pdf ----------
+router.post('/export/pdf', async (req, res) => {
   try {
-    const { id, format } = req.body || {};
-    const fmt = String(format || 'soap').toUpperCase();
+    const body = Object(req.body || {});
 
-    let note = null;
-    if (id) {
-      note = await store.getNoteById(id);
-      if (!note) {
-        const list = await store.listNotes().catch(() => []);
-        note = list.find(
-          (n) => n && (n.id === id || n.code === id || n.uuid === id)
-        );
-      }
-    } else if (req.body && req.body.note) {
-      note = req.body.note;
-    } else {
-      note = req.body || null;
-    }
+    const noteType = String(body.noteType || 'SOAP').toUpperCase();
+    const text = coalesceText(body);
+    const datasetUuid = (body.uuid && String(body.uuid).trim()) || '';
+    const exportUuid = crypto.randomUUID();
 
-    if (!note) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND' } });
-    }
+    if (!text) return res.status(422).json({ ok:false, error:{ code:'MISSING_TEXT', detail:'provide non-empty text in body' }});
+    if (noteType !== 'SOAP' && noteType !== 'BIRP') return res.status(422).json({ ok:false, error:{ code:'BAD_NOTE_TYPE' }});
 
-    const buf = await renderNotePDF(note, { format: fmt });
+    const noteForPdf = {
+      uuid: datasetUuid,
+      noteType,
+      text,
+      noteText: text,
+
+      // Header
+      patient: body.patient || '',
+      dob: body.dob || '',
+      sex: body.sex || '',
+      mrn: body.mrn || '',
+      provider: body.provider || '',
+      credentials: body.credentials || '',
+      npi: body.npi || '',
+      clinic: body.clinic || '',
+
+      // Encounter/context shown in header/footer
+      encounter: body.encounter || '',
+      encounterType: body.encounterType || '',
+      telePlatform: body.telePlatform || '',
+      teleConsent: body.teleConsent || '',
+
+      // Subjective fallbacks
+      chiefComplaint: body.chiefComplaint || '',
+      hpi: body.hpi || '',
+      pmh: body.pmh || '',
+      fh: body.fh || '',
+      sh: body.sh || '',
+      ros: body.ros || '',
+
+      // Objective fallbacks
+      vBP: body.vBP || '',
+      vHR: body.vHR || '',
+      vRR: body.vRR || '',
+      vTemp: body.vTemp || '',
+      vWeight: body.vWeight || '',
+      vO2Sat: body.vO2Sat || '',
+      height: body.height || '',
+      painScore: body.painScore || '',
+      exam: body.exam || '',
+      diagnostics: body.diagnostics || '',
+      medications: body.medications || '',
+      allergies: body.allergies || '',
+
+      // Billing/extras shown as bullets
+      icd10: body.icd10 || '',
+      cptCodes: body.cptCodes || '',
+      cptModifiers: body.cptModifiers || '',
+      posCode: body.posCode || '',
+      visitKind: body.visitKind || '',
+      timeIn: body.timeIn || '',
+      timeOut: body.timeOut || '',
+      timeMinutes: body.timeMinutes || '',
+      procedure: body.procedure || '',
+      orders: body.orders || '',
+      followUp: body.followUp || '',
+      disposition: body.disposition || '',
+
+      createdAt: body.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const format = (String(body.format || '').toLowerCase() === 'birp' || noteType === 'BIRP') ? 'birp' : 'soap';
+
+    const rendered = await renderNotePDF(noteForPdf, { format, uuid: datasetUuid, exportUuid });
+    const pdfBuffer = await asBuffer(rendered);
+    if (!pdfBuffer || !sniffIsPdf(pdfBuffer)) return res.status(500).json({ ok:false, error:{ code:'PDF_INVALID_BYTES' }});
+
+    const baseName = datasetUuid || exportUuid;
+    const filename = (rendered && rendered.filename) ? rendered.filename : `${baseName}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${(note.id || id || 'note')}.pdf"`
-    );
-    res.send(buf);
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Content-Length', String(pdfBuffer.length));
+    res.end(pdfBuffer);
   } catch (e) {
-    console.error('PDF export failed:', e);
-    res.status(500).json({ error: { code: 'PDF_FAILED' } });
+    console.error('pdf export (draft) failed:', e);
+    if (!res.headersSent) res.status(500).json({ ok:false, error:{ code:'PDF_FAILED' }}); else res.end();
   }
 });
 
