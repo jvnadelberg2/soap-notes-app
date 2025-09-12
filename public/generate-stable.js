@@ -9,24 +9,28 @@ Observability: Increment metrics where relevant; return JSON errors.
 END:BEGIN:ARCH-COMMENT */
 'use strict';
 
+function collectBirpFromUI() {
+  return {
+    noteType: 'BIRP',
+    birpBehavior: (document.getElementById('birpBehavior')?.value || '').trim(),
+    birpIntervention: (document.getElementById('birpIntervention')?.value || '').trim(),
+    birpResponse: (document.getElementById('birpResponse')?.value || '').trim(),
+    birpPlan: (document.getElementById('birpPlan')?.value || '').trim()
+  };
+}
+
 (function(){
-  // utils
-  function $(id){ return document.getElementById(id); }
-  function V(id){
-    var el=$(id); if(!el) return '';
-    if (el.type === 'checkbox') return !!el.checked;
-    return (el.value||'').trim();
-  }
-  function setOut(txt){
-    var pre=$('soapTextOut');
-    if(pre) pre.textContent=(txt||'').trim();
+  function $(id){ return document.getElementById(id) }
+  function setOut(text){
+    var pre = $('soapTextOut');
+    if(pre) pre.textContent = String(text||'');
   }
   function setTitle(fmt){
-    var h=$('generatedNoteTitle');
-    if(h) h.textContent=(fmt==='BIRP'?'BIRP':'SOAP')+' Generation';
+    var h3 = document.querySelector('#cardNote h3'); if(!h3) return;
+    h3.textContent = (fmt==='BIRP'?'BIRP Note':'SOAP Note');
   }
+  function V(id){ var el=$(id); return el ? (el.value||'') : '' }
 
-  // gatherers
   function collectSOAP(){
     return {
       useInference: !!V('useInference'),
@@ -40,14 +44,14 @@ END:BEGIN:ARCH-COMMENT */
       vHR: V('vHR'),
       vRR: V('vRR'),
       vTemp: V('vTemp'),
+      vSpO2: V('vSpO2'),
       vWeight: V('vWeight'),
-      vO2Sat: V('vO2Sat'),
-      height: V('height'),
-      painScore: V('painScore'),
-      diagnostics: V('diagnostics'),
+      vHeight: V('vHeight'),
       exam: V('exam'),
-      allergies: V('allergies'),
-      medications: V('medications')
+      diagnostics: V('diagnostics'),
+      assessment: V('assessment'),
+      plan: V('plan'),
+      text: (document.getElementById('noteText')?.value||'').trim()
     };
   }
 

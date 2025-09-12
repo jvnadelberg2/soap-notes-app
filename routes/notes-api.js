@@ -139,3 +139,22 @@ router.post('/notes/:uuid/finalize', async (req, res) => {
 
 
 module.exports = router;
+
+
+router.delete('/notes', async (req, res) => {
+  const allow = (process.env.ALLOW_PURGE === '1' || process.env.ALLOW_PURGE === 'true');
+  const wantsAll = String(req.query.all || '') === '1';
+  if (!allow || !wantsAll) return res.status(403).json({ ok:false, error:{ code:'PURGE_DISABLED' } });
+  try {
+    const path = require('path');
+    const fsp = require('fs/promises');
+    const notesDir = path.resolve(__dirname, '..', 'notes');
+    const files = await fsp.readdir(notesDir).catch(() => []);
+    const deleted = files.filter(n => !n.startsWith('.')).length;
+    await fsp.rm(notesDir, { recursive: true, force: true });
+    await fsp.mkdir(notesDir, { recursive: true });
+    return res.status(200).json({ ok:true, deleted });
+  } catch {
+    return res.status(500).json({ ok:false, error:{ code:'PURGE_FAILED' } });
+  }
+});

@@ -1,23 +1,58 @@
-/* BEGIN:ARCH-COMMENT
-File: public/new-note-id-reset.js
-Purpose: High-level description of this module in the SOAP/BIRP notes app.
-Endpoints: none detected
-Exports: none detected
-Notes:
-Security: Applies middleware where wired; follow immutability rules for finalized notes.
-Observability: Increment metrics where relevant; return JSON errors.
-END:BEGIN:ARCH-COMMENT */
-'use strict';
+/* eslint-disable */
+// NOTE: single-file replacement to ensure Clear truly resets UI + internal state.
+
 (function(){
-  function $(id){ return document.getElementById(id); }
-  function wire(){
-    var btn = document.getElementById('btnClear'); if (!btn) return;
-    if (btn.dataset.resetIdBound === '1') return;
-    btn.dataset.resetIdBound = '1';
+  'use strict';
+
+  const byId = (id) => document.getElementById(id);
+
+  function clearInputs() {
+    const ids = [
+      // common patient fields
+      'patient','patientName','mrn','dob','sex','provider','clinic','npi','location',
+      // SOAP fields
+      'chiefComplaint','hpi','pmh','fh','sh','ros','vBP','vHR','vRR','vTemp','vWeight','vO2Sat','height','painScore','diagnostics','exam','allergies','medications','noteText',
+      // BIRP fields
+      'birpBehavior','birpIntervention','birpResponse','birpPlan'
+    ];
+    ids.forEach(id => {
+      const el = byId(id);
+      if (!el) return;
+      if ('value' in el) el.value = '';
+      if (el.tagName === 'TEXTAREA') el.value = '';
+    });
+  }
+
+  function clearOutputs() {
+    ['soapTextOut','birpTextOut','noteTextOut'].forEach(id => {
+      const el = byId(id);
+      if (el) el.textContent = '';
+    });
+  }
+
+  function clearState() {
+    if (window.currentNote && typeof window.currentNote === 'object') {
+      for (const k of Object.keys(window.currentNote)) delete window.currentNote[k];
+    }
+    window.currentUUID = null;
+    try { localStorage.removeItem('currentNote'); } catch {}
+    try { sessionStorage.removeItem('currentNote'); } catch {}
+  }
+
+  function wire() {
+    const btn = byId('btnClear');
+    if (!btn) return;
     btn.addEventListener('click', function(){
-      var idEl = $('current-note-id'); if (idEl) idEl.value = '';
+      clearInputs();
+      clearOutputs();
+      clearState();
+      if (typeof window.refreshList === 'function') { try { window.refreshList(); } catch {} }
     }, { passive:true });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire, { once:true });
-  else wire();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wire, { once:true });
+  } else {
+    wire();
+  }
 })();

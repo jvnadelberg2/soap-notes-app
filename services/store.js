@@ -1,3 +1,4 @@
+const fsp = require('fs/promises');
 /* BEGIN:ARCH-COMMENT
 File: services/store.js
 Purpose: High-level description of this module in the SOAP/BIRP notes app.
@@ -253,3 +254,15 @@ module.exports = {
   _unsafe_readAll: () => (loadAll(), clone(_notes)),
   _unsafe_writeAll: (arr) => { _notes = clone(arr || []); _loaded = true; persistAll(); }
 };
+
+const STORE_NOTES_DIR__PURGE = process.env.NOTES_DIR ? path.resolve(process.env.NOTES_DIR) : path.resolve(__dirname,'..','notes');
+async function purgeAll(){
+  const files = await fsp.readdir(STORE_NOTES_DIR__PURGE).catch(()=>[]);
+  const deletedCount = files.filter(n=>!n.startsWith('.')).length;
+  await fsp.rm(STORE_NOTES_DIR__PURGE,{recursive:true,force:true});
+  await fsp.mkdir(STORE_NOTES_DIR__PURGE,{recursive:true});
+  return { ok:true, deleted:deletedCount };
+}
+
+module.exports = module.exports || {};
+module.exports.purgeAll = purgeAll;

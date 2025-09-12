@@ -14,13 +14,21 @@ END:BEGIN:ARCH-COMMENT */
   const $ = (id) => document.getElementById(id);
 
   function setStatus(msg) {
-    const el = $("status");
-    if (el) el.textContent = msg || "";
+    const s = $("status");
+    if (s) s.textContent = String(msg || "");
   }
 
-  async function onGenerateClick(ev) {
-    const btn = ev.currentTarget;
+  function defaultSignedBy() {
+    const provider = $("provider")?.value || "";
+    const cred = $("credentials")?.value || "";
+    return (provider + (cred ? " " + cred : "")).trim();
+  }
+
+  async function onGenerateClick(e) {
     try {
+      if (e && e.preventDefault) e.preventDefault();
+      const btn = $("btnGenerate");
+      if (!btn) return;
       btn.disabled = true;
       setStatus("Generating…");
 
@@ -30,101 +38,49 @@ END:BEGIN:ARCH-COMMENT */
         return;
       }
 
-      // generateStable will internally call generateWithModel (POST) if enabled
       const note = await window.generateStable();
 
-      // Show result (generateStable already writes to #soapTextOut; this is just safety)
       const pre = $("soapTextOut");
-      if (pre && !pre.textContent) pre.textContent = note || "";
+      if (pre && note) pre.textContent = note;
 
-      setStatus("Done.");
-    } catch (e) {
-      console.error("[actions] generate failed", e);
-      setStatus("Generation failed. See console for details.");
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  function ready() {
-    try {
-      const btnGenerate = $("btnGenerate");
-      if (btnGenerate) {
-        btnGenerate.removeEventListener("click", onGenerateClick);
-        btnGenerate.addEventListener("click", onGenerateClick, { passive: true });
-      } else {
-        console.warn("[actions] #btnGenerate not found");
+      const fmtEl = $("noteType") || $("note-format");
+      const noteType = ((fmtEl?.value || "").toUpperCase() === "BIRP") ? "BIRP" : "SOAP";
+      if (!window.currentUUID) {
+        window.currentUUID = (crypto?.randomUUID?.() || (Date.now().toString(36) + Math.random().toString(36).slice(2)));
       }
 
-      // Optional: keep these no-ops to avoid errors if other files removed/changed
-      const noop = (id, fn) => {
-        const el = $(id);
-        if (el && fn) {
-          el.onclick = (e) => {
-            try { fn(e); } catch (err) { console.warn(`[actions] ${id} failed`, err); }
-          };
-        }
-      };
+      await fetch("/api/notes/" + encodeURIComponent(window.currentUUID), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ noteType, text: (note || pre?.textContent || "") })
+      }).then(r => r.json()).catch(()=>{});
 
-      noop("btnClear", () => {
-        // Keep existing clear logic elsewhere; just a small guard here
-        const ids = ["chiefComplaint","hpi","pmh","fh","sh","ros","exam","diagnostics",
-                     "vBP","vHR","vRR","vTemp","vWeight","vO2Sat"];
-        ids.forEach((id) => { const el = $(id); if (el) el.value = ""; });
-        setStatus("Cleared patient data.");
-      });
-
-      noop("genStream", () => window.print());
-      // You likely have real handlers elsewhere for save/export; we leave them alone.
-      noop("saveNote");
-      noop("exportPdf");
-
-      console.log("[actions] Generate button wired.");
-    } catch (e) {
-      console.error("[actions] init failed", e);
-      setStatus("UI init error.");
+      if (typeof window.refreshList === "function") {
+        try { await window.refreshList(); } catch {}
+      }
+      setStatus("Done.");
+    } catch (err) {
+      console.error("[actions] generate failed", err);
+      setStatus("Generation failed. See console for details.");
+    } finally {
+      const btn = $("btnGenerate");
+      if (btn) btn.disabled = false;
     }
   }
 
-  // Scripts load with defer; DOM is parsed by now, but guard anyway:
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", ready, { once: true });
-  } else {
-    ready();
-  }
-})();
+  const btn = $("btnGenerate");
+  if (btn) btn.addEventListener("click", onGenerateClick, { passive: true });
 
-
-// === Finalize wiring (added) ===
-(function(){
-  const $ = (id) => document.getElementById(id);
-
-  function defaultSignedBy(){
-    const prov = ($('provider')?.value || '').trim();
-    const cred = ($('credentials')?.value || '').trim();
-    return cred ? `${prov}, ${cred}` : prov;
-  }
-  function maybePrefillSignedBy(){
-    const box = $('signedBy');
-    if (!box) return;
-    if (!box.value.trim()) box.value = defaultSignedBy();
-  }
-  document.addEventListener('DOMContentLoaded', maybePrefillSignedBy);
-  ['provider','credentials'].forEach(id => {
-    const el = $(id);
-    if (el) el.addEventListener('change', maybePrefillSignedBy);
-    if (el) el.addEventListener('blur',   maybePrefillSignedBy);
-  });
-
-  const btn = $('btn-finalize');
-  if (!btn) return;
-  async function finalizeNow(e){
-    e.preventDefault();
+  const fbtn = document.getElementById("btn-finalize");
+  if (!fbtn) return;
+  async function finalizeNow(e) {
     try {
-      btn.disabled = true;
-      if (typeof window.saveNote === 'function') await window.saveNote();
+      e && e.preventDefault && e.preventDefault();
 
-      const uuid = ($('current-note-uuid')?.value || '').trim();
+      const btn = document.getElementById('btn-finalize');
+      btn.disabled = true;
+
+      const uuid = (document.getElementById('current-note-uuid')?.value || '').trim();
       if (!uuid) { alert('No current note to finalize.'); return; }
 
       const signedBy = ($('signedBy')?.value || defaultSignedBy()).trim();

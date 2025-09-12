@@ -1,10 +1,48 @@
-/* BEGIN:ARCH-COMMENT
-File: public/specialties.js
-Purpose: High-level description of this module in the SOAP/BIRP notes app.
-Endpoints: none detected
-Exports: none detected
-Notes:
-Security: Applies middleware where wired; follow immutability rules for finalized notes.
-Observability: Increment metrics where relevant; return JSON errors.
-END:BEGIN:ARCH-COMMENT */
-"use strict";(function(){var SPECIALTIES=["Addiction Counselor","Addiction Medicine Physician","Advanced Practice Registered Nurse (APRN)","Allergy / Immunology Physician","Anesthesiologist","Audiologist","Cardiologist","Cardiothoracic Surgeon","Case Manager","Child & Adolescent Psychiatrist","Clinical Laboratory Scientist","Clinical Mental Health Counselor","Clinical Nurse Specialist","Clinical Psychologist","Clinical Social Worker","Coding and Billing Specialist","Colorectal Surgeon","Critical Care Physician / Intensivist","Cytopathologist","Dermatologist","Developmental-Behavioral Pediatrician","Dietitian","Emergency Medical Technician (EMT)","Emergency Medicine Physician","Endocrinologist","Family Medicine Physician","Forensic Pathologist","Gastroenterologist","General Surgeon","Geneticist (Medical)","Geriatrician","Gynecologic Oncologist","Hand Surgeon","Health Information Manager","Hematologist","Hematologist-Oncologist","Hospice & Palliative Medicine Specialist","Hospitalist","Infectious Disease Specialist","Internal Medicine Physician","Interventional Radiologist","Laboratory Technologist","Legal / Compliance Officer","Licensed Marriage and Family Therapist (LMFT)","Licensed Professional Clinical Counselor (LPCC)","Licensed Practical Nurse (LPN)","Licensed Vocational Nurse (LVN)","Maternal-Fetal Medicine Specialist","Medical Assistant","Medical Geneticist","Medical Oncologist","Medical Scribe","Neonatologist","Nephrologist","Neurologist","Neuropathologist","Neurosurgeon","Nuclear Medicine Physician","Nurse Anesthetist (CRNA)","Nurse Midwife (CNM)","Nurse Practitioner (NP)","Obstetrician / Gynecologist (OB/GYN)","Occupational Medicine Physician","Occupational Therapist (OT)","Ophthalmologist","Optometrist","Orthopedic Surgeon","Otolaryngologist (ENT)","Pain Medicine Specialist","Paramedic","Pathologist","Pediatric Cardiologist","Pediatric Endocrinologist","Pediatric Neurologist","Pediatric Oncologist","Pediatric Pulmonologist","Pediatrician","Pharmacist","Physical Medicine & Rehabilitation Physician","Physical Therapist (PT)","Physician Assistant (PA)","Plastic Surgeon","Preventive Medicine Physician","Primary Care Physician","Professional Counselor","Psychiatrist","Psychologist (Clinical)","Psychologist (Counseling)","Psychologist (Neuropsychology)","Pulmonologist","Radiation Oncologist","Radiologist (Diagnostic)","Recreational Therapist","Reproductive Endocrinologist / Infertility Specialist","Respiratory Therapist (RT)","Rheumatologist","Sleep Medicine Specialist","Speech-Language Pathologist (SLP)","Sports Medicine Physician","Substance Abuse Counselor","Thoracic Surgeon","Transplant Surgeon","Trauma Surgeon","Urologist","Vascular Surgeon"];function ensureField(){var sel=document.getElementById("specialty");if(sel)return sel;var field=document.createElement("div");field.className="field";field.id="specialty-field";var lbl=document.createElement("label");lbl.setAttribute("for","specialty");lbl.textContent="Specialty";sel=document.createElement("select");sel.id="specialty";sel.name="specialty";field.appendChild(lbl);field.appendChild(sel);var form=document.querySelector("form");if(form){if(form.firstElementChild){form.insertBefore(field,form.firstElementChild.nextSibling);}else{form.appendChild(field);}}else{document.body.insertBefore(field,document.body.firstChild);}return sel;}function populate(sel){sel.innerHTML="";for(var i=0;i<SPECIALTIES.length;i++){var s=SPECIALTIES[i];var o=document.createElement("option");o.value=s;o.textContent=s;sel.appendChild(o);}var def=localStorage.getItem("specialty")||SPECIALTIES[0];sel.value=def;}function boot(){var sel=ensureField();populate(sel);sel.addEventListener("change",function(){try{localStorage.setItem("specialty",sel.value);}catch(e){}},{passive:true});window.getSpecialty=function(){return sel.value||"";};}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",boot,{once:true});}else{boot();}})();
+(function(){
+  'use strict';
+  var LIST = [
+    "Addiction Medicine","Adolescent Medicine","Allergy & Immunology","Anesthesiology","Anesthesiology Critical Care",
+    "Audiology","Bariatric Surgery","Behavioral Neurology","Breast Surgery","Cardiology","Cardiology—Electrophysiology",
+    "Cardiothoracic Surgery","Cardiovascular Surgery","Child & Adolescent Psychiatry","Colon & Rectal Surgery",
+    "Complex General Surgical Oncology","Critical Care Medicine","Dermatology","Dermatopathology","Diabetology",
+    "Emergency Medicine","Endocrinology","Family Medicine","Female Pelvic Medicine & Reconstructive Surgery",
+    "Gastroenterology","General Practice","General Surgery","Geriatric Medicine","Geriatric Psychiatry",
+    "Gynecologic Oncology","Hand Surgery","Hematology","Hematology & Oncology","Hepatology","Hospital Medicine",
+    "Hospitalist","Infectious Disease","Interventional Cardiology","Interventional Radiology",
+    "Internal Medicine","Maternal-Fetal Medicine","Medical Genetics","Medical Oncology","Neonatology",
+    "Nephrology","Neurocritical Care","Neurodevelopmental Disabilities","Neurology","Neuromuscular Medicine",
+    "Neurological Surgery","Neuroradiology","Nuclear Medicine","Nuclear Radiology","Nurse Practitioner (NP)",
+    "Obstetrics & Gynecology","Occupational Medicine","Ophthalmology","Optometry","Oral & Maxillofacial Surgery",
+    "Orthopaedic Surgery","Orthopaedic Sports Medicine","Otolaryngology (ENT)","Pain Medicine","Palliative Medicine",
+    "Pathology—Anatomic","Pathology—Clinical","Pathology—Forensic","Pediatrics","Pediatric Cardiology",
+    "Pediatric Critical Care","Pediatric Endocrinology","Pediatric Gastroenterology","Pediatric Hematology-Oncology",
+    "Pediatric Infectious Disease","Pediatric Nephrology","Pediatric Neurology","Pediatric Pulmonology",
+    "Pediatric Rheumatology","Pediatric Surgery","Physical Medicine & Rehabilitation","Physician Assistant (PA)",
+    "Plastic Surgery","Plastic Surgery—Craniofacial","Podiatry","Preventive Medicine","Primary Care",
+    "Psychiatry","Psychology","Pulmonary Disease","Radiation Oncology","Radiology—Diagnostic",
+    "Reproductive Endocrinology & Infertility","Rheumatology","Sleep Medicine","Spine Surgery",
+    "Sports Medicine","Surgical Critical Care","Thoracic Surgery","Transplant Hepatology","Transplant Surgery",
+    "Urgent Care","Urogynecology","Urology","Vascular Medicine","Vascular Neurology","Vascular Surgery",
+    "Wound Care","Certified Nurse Midwife (CNM)","Certified Registered Nurse Anesthetist (CRNA)",
+    "Clinical Pharmacist","Dietitian/Nutrition","Social Work","Speech-Language Pathology"
+  ];
+
+  function fill(){
+    var sel = document.getElementById('specialty') || document.getElementById('speciality') || document.getElementById('specialities');
+    if(!sel) return;
+    sel.innerHTML='';
+    var blank=document.createElement('option'); blank.value=''; blank.textContent=''; sel.appendChild(blank);
+    for(var i=0;i<LIST.length;i++){ var o=document.createElement('option'); o.value=LIST[i]; o.textContent=LIST[i]; sel.appendChild(o) }
+  }
+
+  function init(){
+    fill();
+    var sel = document.getElementById('specialty') || document.getElementById('speciality') || document.getElementById('specialities');
+    if (sel){
+      sel.addEventListener('focus', fill, {passive:true});
+      sel.addEventListener('mousedown', fill, {passive:true});
+    }
+  }
+
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded', init, {once:true});} else {init();}
+})();
