@@ -86,7 +86,6 @@ END:BEGIN:ARCH-COMMENT */
       const signedBy = ($('signedBy')?.value || defaultSignedBy()).trim();
       const attestationText = ($('attestationText')?.value || '').trim();
 
-      const r = await fetch('/api/notes/' + encodeURIComponent(uuid) + '/finalize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ signedBy, attestationText })
