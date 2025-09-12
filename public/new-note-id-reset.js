@@ -1,5 +1,4 @@
-/* eslint-disable */
-// NOTE: single-file replacement to ensure Clear truly resets UI + internal state.
+
 
 (function(){
   'use strict';
@@ -8,11 +7,8 @@
 
   function clearInputs() {
     const ids = [
-      // common patient fields
       'patient','patientName','mrn','dob','sex','provider','clinic','npi','location',
-      // SOAP fields
       'chiefComplaint','hpi','pmh','fh','sh','ros','vBP','vHR','vRR','vTemp','vWeight','vO2Sat','height','painScore','diagnostics','exam','allergies','medications','noteText',
-      // BIRP fields
       'birpBehavior','birpIntervention','birpResponse','birpPlan'
     ];
     ids.forEach(id => {

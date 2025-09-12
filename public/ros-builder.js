@@ -1,27 +1,7 @@
-/* BEGIN:ARCH-COMMENT
-File: public/ros-builder.js
-Purpose: High-level description of this module in the SOAP/BIRP notes app.
-Endpoints: none detected
-Exports: none detected
-Notes:
-Security: Applies middleware where wired; follow immutability rules for finalized notes.
-Observability: Increment metrics where relevant; return JSON errors.
-END:BEGIN:ARCH-COMMENT */
+
 'use strict';
 
-/*
-  Replacement for the old chip-based ROS helper.
 
-  What this does:
-  - Finds <textarea id="ros"> (your existing free-text ROS field).
-  - Renders a grid of checkboxes for common systems right ABOVE that textarea.
-  - Ticking a checkbox inserts that system name into the textarea (de-duplicated).
-  - Unticking removes it from the textarea.
-  - If the textarea already contains some system names at load, matching boxes start checked.
-  - Clicking “New Note” (btn-new-note) clears all ROS checkboxes.
-
-  No backend changes required. Your save/load path for #ros stays the same.
-*/
 
 (function(){
   if (window.__ROS_CHECKBOXES__) return; window.__ROS_CHECKBOXES__ = true;
@@ -29,7 +9,6 @@ END:BEGIN:ARCH-COMMENT */
   function $(id){ return document.getElementById(id); }
   function $all(sel){ return Array.from(document.querySelectorAll(sel)); }
 
-  // Systems list (labels written exactly as they’ll appear in the textarea)
   const SYSTEMS = [
     'Constitutional',
     'Eyes',
@@ -47,7 +26,6 @@ END:BEGIN:ARCH-COMMENT */
     'skin/breast'
   ];
 
-  // Text helpers
   function hasTerm(text, term){
     const re = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\$&')}\\b`, 'i');
     return re.test(text || '');
@@ -77,7 +55,6 @@ END:BEGIN:ARCH-COMMENT */
       cb.className = 'ros-check';
       cb.value = labelText;
 
-      // Initialize checked state from existing textarea content
       try { cb.checked = hasTerm(textarea.value, labelText); } catch {}
 
       cb.addEventListener('change', function(){
@@ -106,29 +83,23 @@ END:BEGIN:ARCH-COMMENT */
     const ta = $('ros');
     if (!ta) return;
 
-    // If an old toolbar exists, remove it (for safety when replacing older builds)
     const oldToolbar = document.getElementById('ros-quick-toolbar');
     if (oldToolbar && oldToolbar.parentNode) oldToolbar.parentNode.removeChild(oldToolbar);
 
-    // Insert grid right above the textarea’s parent row (or just above the textarea)
     const grid = buildGrid(ta);
     if (ta.parentNode) {
       ta.parentNode.insertBefore(grid, ta);
     } else {
-      // Fallback: append after body if layout is unusual
       document.body.insertBefore(grid, document.body.firstChild);
     }
 
-    // When textarea is cleared manually, untick all boxes (keeps UI in sync)
     ta.addEventListener('input', function(){
       if ((ta.value || '').trim() === '') clearAll();
     });
 
-    // Clear on New Note button
     const newBtn = $('btn-new-note');
     if (newBtn) newBtn.addEventListener('click', function(){
       clearAll();
-      // Let your existing code clear #ros value as it already does
     }, {capture:true});
   }
 

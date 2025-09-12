@@ -1,13 +1,4 @@
-/* BEGIN:ARCH-COMMENT
-File: public/css/app.js
-Purpose: High-level description of this module in the SOAP/BIRP notes app.
-Endpoints: none detected
-Exports: none detected
-Notes:
-Security: Applies middleware where wired; follow immutability rules for finalized notes.
-Observability: Increment metrics where relevant; return JSON errors.
-END:BEGIN:ARCH-COMMENT */
-// --- Put Patient Complaint + History into SUBJECTIVE (safe wrapper) ---
+
 (function(){
   const d=document;
   const get=(id)=>{ const el=d.getElementById(id); return el?String(('value' in el?el.value:el.textContent)||'').trim():'' };
@@ -32,7 +23,6 @@ END:BEGIN:ARCH-COMMENT */
 
     if(subj) p.Subjective = subj;
 
-    // also include discrete fields for the model
     setIfEmpty(p,'complaint', complaint);
     setIfEmpty(p,'hpi', history);
     setIfEmpty(p,'patientHistory', history);
@@ -51,7 +41,7 @@ END:BEGIN:ARCH-COMMENT */
 
 
 <script>
-/* Enrich payload from current UI before sending */
+
 window.enrichFromUI = function enrichFromUI(p){
   const d = document;
   const get = (id) => {
@@ -70,7 +60,6 @@ window.enrichFromUI = function enrichFromUI(p){
   const setIfEmpty = (o,k,val) => { if (val && (o[k] == null || o[k] === '')) o[k] = val; };
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // --- SUBJECTIVE: Complaint + History ---
   const complaint = firstNonEmpty(['complaint','chiefComplaint','cc']);
   const history   = firstNonEmpty(['patientHistory','hpi','history']);
 
@@ -84,11 +73,9 @@ window.enrichFromUI = function enrichFromUI(p){
   addLineIfMissing('History of Present Illness', history);
   if (subj) p.Subjective = subj;
 
-  // Back-compat fields (some codepaths may still read these)
   setIfEmpty(p, 'complaint', complaint);
   setIfEmpty(p, 'hpi', history);
 
-  // --- OBJECTIVE: vitals, labs, imaging (kept for completeness) ---
   const vb = get('vBP'), vh = get('vHR'), vr = get('vRR');
   const labs = get('labs'), imaging = get('imaging');
 
@@ -141,7 +128,7 @@ window.enrichFromUI = function enrichFromUI(p){
   }
 }catch(e){}})();
 
-/*PI_EXTRA*/
+
 try{
   const d=document;
   const get=(id)=>{const el=d.getElementById(id);return el?String((('value'in el?el.value:el.textContent)||'').trim()):''};
@@ -270,7 +257,6 @@ async function generateOnce(){
   setStatus("Generating...");
   try{
     var payload=buildPayload();
-// [inject vitals HR/RR/BP] -- begin
 (function(p){
   var b=document.getElementById("vBP"),
       h=document.getElementById("vHR"),
@@ -288,7 +274,6 @@ async function generateOnce(){
     if(vh) lines.push("HR: "+vh);
     if(vr) lines.push("RR: "+vr);
 
-    // avoid double-inject if Vitals already appended
     var already=false;
     ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"].some(function(k){
       if(typeof p[k]==="string" && p[k].indexOf("Vitals:")!==-1){ already=true; return true; }
@@ -303,8 +288,6 @@ async function generateOnce(){
   }
   return p;
 })(payload);
-// [inject vitals] -- end
-// [inject labs/imaging] -- begin
 (function(p){
   var labsEl=document.getElementById("labs"),
       imgEl =document.getElementById("imaging");
@@ -314,7 +297,6 @@ async function generateOnce(){
     if(labs && !p.labs) p.labs = labs;
     if(imaging && !p.imaging) p.imaging = imaging;
 
-    // avoid double-append
     var already=false;
     ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"]
       .some(function(k){
@@ -335,7 +317,6 @@ async function generateOnce(){
   }
   return p;
 })(payload);
-// [inject labs/imaging] -- end
 
     var rT=await fetch("/api/generate-soap",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify((function(p){var x=document.getElementById("vBP");if(x){var v=String(x.value||"").trim();p.vitals=p.vitals||{};p.vitals.BP=v;if(!p.bp)p.bp=v;}return p;})(payload))});
     var jT=await rT.json();
@@ -384,7 +365,6 @@ function wire(){
   if(save){
     save.onclick=async function(){
       var payload=buildPayload();
-// [inject vitals HR/RR/BP] -- begin
 (function(p){
   var b=document.getElementById("vBP"),
       h=document.getElementById("vHR"),
@@ -402,7 +382,6 @@ function wire(){
     if(vh) lines.push("HR: "+vh);
     if(vr) lines.push("RR: "+vr);
 
-    // avoid double-inject if Vitals already appended
     var already=false;
     ["Objective","body","text","input","prompt","bodyTxt","hpi","complaint","note","Subjective"].some(function(k){
       if(typeof p[k]==="string" && p[k].indexOf("Vitals:")!==-1){ already=true; return true; }
@@ -417,7 +396,6 @@ function wire(){
   }
   return p;
 })(payload);
-// [inject vitals] -- end
 
       try{
         var r=await fetch("/api/save-note",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify((function(p){var x=document.getElementById("vBP");if(x){var v=String(x.value||"").trim();p.vitals=p.vitals||{};p.vitals.BP=v;if(!p.bp)p.bp=v;}return p;})(payload))});
@@ -454,7 +432,7 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 
 
-/* generate-button-only */
+
 document.addEventListener('DOMContentLoaded',function(){
   var raw=document.getElementById('rawText');
   if(raw){

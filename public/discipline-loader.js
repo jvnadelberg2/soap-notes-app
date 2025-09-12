@@ -1,12 +1,4 @@
-/* BEGIN:ARCH-COMMENT
-File: public/discipline-loader.js
-Purpose: High-level description of this module in the SOAP/BIRP notes app.
-Endpoints: none detected
-Exports: none detected
-Notes:
-Security: Applies middleware where wired; follow immutability rules for finalized notes.
-Observability: Increment metrics where relevant; return JSON errors.
-END:BEGIN:ARCH-COMMENT */
+
 (function(){
   function byId(id){ return document.getElementById(id); }
   function addOpt(sel,label){ if(!label) return; var o=document.createElement('option'); o.value=label; o.textContent=label; sel.appendChild(o); }
@@ -27,13 +19,11 @@ END:BEGIN:ARCH-COMMENT */
         if(cand){ out.push(String(cand).trim()); }
       }
     }
-    // de-dupe
     var seen={}, uniq=[];
     for(var j=0;j<out.length;j++){ var v=out[j]; if(v && !seen[v]){ seen[v]=1; uniq.push(v); } }
     return uniq;
   }
 
-  // allow ONLY clinical roles (positive match)
   var CLINICAL_RE = /\b(physician|doctor|nurse practitioner|nurse\b|rn\b|lpn\b|lvn\b|physician assistant|pa\b|physical therapist|occupational therapist|speech|slp|psycholog|psychiatr|social worker|pharmacist|respiratory therapist|dietiti|dentist|hygienist|chiropract|podiat|midwife|paramedic|emt\b|medical assistant|radiolog|x-?ray|ultrasound|sonograph|lab tech|phlebot|audiolog|optomet|ophthalmolog)\b/i;
 
   async function load(){
@@ -69,7 +59,6 @@ END:BEGIN:ARCH-COMMENT */
     sel.addEventListener('change', function(){ localStorage.setItem('discipline', sel.value); });
   }
 
-  // inject discipline into payload + top of Subjective (once)
   var _stringify=JSON.stringify;
   JSON.stringify=function(arg, rep, sp){
     try{

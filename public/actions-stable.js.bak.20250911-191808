@@ -1,5 +1,13 @@
-
-
+/* BEGIN:ARCH-COMMENT
+File: public/actions-stable.js
+Purpose: High-level description of this module in the SOAP/BIRP notes app.
+Endpoints: none detected
+Exports: none detected
+Notes:
+Security: Applies middleware where wired; follow immutability rules for finalized notes.
+Observability: Increment metrics where relevant; return JSON errors.
+END:BEGIN:ARCH-COMMENT */
+/* /actions-stable.js */
 (function () {
   "use strict";
 
@@ -78,6 +86,7 @@
       const signedBy = ($('signedBy')?.value || defaultSignedBy()).trim();
       const attestationText = ($('attestationText')?.value || '').trim();
 
+      const r = await fetch('/api/notes/' + encodeURIComponent(uuid) + '/finalize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ signedBy, attestationText })
@@ -101,3 +110,4 @@
   }
   btn.addEventListener('click', finalizeNow, { passive:false });
 })();
+// === End Finalize wiring ===

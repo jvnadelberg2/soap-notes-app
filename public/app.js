@@ -1,13 +1,4 @@
-/* BEGIN:ARCH-COMMENT
-File: public/app.js
-Purpose: High-level description of this module in the SOAP/BIRP notes app.
-Endpoints: none detected
-Exports: none detected
-Notes:
-Security: Applies middleware where wired; follow immutability rules for finalized notes.
-Observability: Increment metrics where relevant; return JSON errors.
-END:BEGIN:ARCH-COMMENT */
-// ===== Notes UI logic (single source of truth) =====
+
 
 function pretty(ts){
   if(!ts) return '';
@@ -36,7 +27,6 @@ function setStatus(msg){
   if (s) s.textContent = String(msg||'');
 }
 
-// --- value helpers ---
 function V(id){
   var el = $(id);
   if (!el) return '';
@@ -49,13 +39,11 @@ function getUUID(){
   return el ? (el.value || '') : '';
 }
 
-// --- format helpers (SOAP / BIRP) ---
 function getFormat() {
   const el = $('noteType') || $('note-format');
   return ((el && el.value) || 'SOAP').toUpperCase();
 }
 
-// ---- list / table ----
 async function refreshList(){
   try{
     var res = await fetch('/api/notes');
@@ -87,7 +75,6 @@ async function refreshList(){
 }
 window.refreshList = refreshList;
 
-// ---- load ----
 async function loadNote(uuid){
   if(!uuid) return;
   try{
@@ -99,6 +86,19 @@ async function loadNote(uuid){
     var fmt = (j.note.noteType||'SOAP').toUpperCase();
     (function apply(){
       setTitle(fmt);
+      if() .value = j.note.patient||'';
+      if() .value = j.note.patientName||'';
+      if() .value = j.note.mrn||'';
+      if() .value = j.note.dob||'';
+      if() .value = j.note.sex||'';
+      if() .value = j.note.provider||'';
+      if() .value = j.note.credentials||'';
+      if() .value = j.note.clinic||'';
+      if() .value = j.note.npi||'';
+      if() .value = j.note.location||'';
+      if() .value = j.note.specialty||'';
+      if() .value = j.note.allergies||'';
+      if() .value = j.note.medications||'';
       if(fmt==='BIRP'){
         if($('birpBehavior')) $('birpBehavior').value = j.note.birp?.behavior||'';
         if($('birpIntervention')) $('birpIntervention').value = j.note.birp?.intervention||'';
@@ -130,7 +130,6 @@ async function loadNote(uuid){
 }
 window.loadNote = loadNote;
 
-// ---- delete ----
 async function deleteNote(uuid){
   if(!uuid) return;
   if(!window.confirm('Delete this note?')) return;
@@ -140,7 +139,6 @@ async function deleteNote(uuid){
   }catch(_){}
 }
 
-// ---- save ----
 async function saveNote(){
   try{
     const fmt = getFormat();
@@ -193,7 +191,6 @@ async function saveNote(){
 }
 window.saveNote = saveNote;
 
-// ---- export PDF ----
 async function exportPdf(){
   try{
     const fmt = (getFormat()==='BIRP')?'birp':'soap';
@@ -208,7 +205,6 @@ function wireExportPdf(){
   if(b) b.addEventListener('click', function(e){ e.preventDefault(); exportPdf() }, {passive:false});
 }
 
-// ---- generate ----
 async function generateNote(){
   const btn = $('btnGenerate');
   if(!btn) return;
@@ -233,7 +229,6 @@ async function generateNote(){
   }
 }
 
-// ---- finalize ----
 async function finalizeCurrent(){
   try{
     const uuid = getUUID();
@@ -261,7 +256,6 @@ async function finalizeCurrent(){
   }
 }
 
-// ---- wire ----
 function wire(){
   var g = $('btnGenerate'); if(g) g.addEventListener('click', function(e){ e.preventDefault(); generateNote() }, {passive:false});
   var s = $('btn-save-note'); if(s) s.addEventListener('click', function(e){ e.preventDefault(); saveNote() }, {passive:false});
@@ -272,7 +266,6 @@ function wire(){
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire, { once:true });
 else wire();
 
-// ---- admin destructive button ----
 (function wireDangerDeleteAll(){
   var btn = document.getElementById('btnDeleteAllNotes');
   if(!btn) return;

@@ -1,12 +1,4 @@
-/* BEGIN:ARCH-COMMENT
-File: public/ui-list-tweaks.js
-Purpose: High-level description of this module in the SOAP/BIRP notes app.
-Endpoints: none detected
-Exports: none detected
-Notes:
-Security: Applies middleware where wired; follow immutability rules for finalized notes.
-Observability: Increment metrics where relevant; return JSON errors.
-END:BEGIN:ARCH-COMMENT */
+
 'use strict';
 (function(){
   function $(id){ return document.getElementById(id); }
@@ -47,7 +39,6 @@ END:BEGIN:ARCH-COMMENT */
       }
       tr.dataset.tweaked = '1';
     });
-    // DEL (per-row) — added right next to PDF, no other changes
 var del = document.createElement('button');
 del.textContent = 'DEL';
 del.style.marginLeft = '6px';
@@ -59,11 +50,9 @@ del.addEventListener('click', async function(e){
     if (!resp.ok) { alert('Delete failed'); return; }
   } catch (_) { alert('Delete failed'); return; }
 
-  // clear current selection if we deleted the loaded note
   var hid = document.getElementById('current-note-id');
   if (hid && hid.value === id) hid.value = '';
 
-  // refresh the table so the row disappears
   if (window.refreshList) { try { await window.refreshList(); } catch(_){} }
 }, { passive: true });
 

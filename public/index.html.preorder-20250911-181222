@@ -1,4 +1,8 @@
-
+<!-- BEGIN:ARCH-COMMENT
+File: public/index.html
+Purpose: SOAP / BIRP Notes page in the SOAP/BIRP UI.
+Notes: Contains UI code that interacts with API routes; ensure buttons are disabled during in-flight actions and Draft/Final states are visible.
+END:BEGIN:ARCH-COMMENT -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -349,6 +353,7 @@
   <script src="/persist-ui.js?v=3" defer></script>
   <script src="/ui-below-buttons.js?v=19" defer></script>
   <script src="/actions-stable.js?v=7006" defer></script>
+  <script src="/clear-patient-info.js?v=2" defer></script>
   <script src="/new-note-id-reset.js?v=1" defer></script>
   <script src="/ros-builder.js?v=6" defer></script>
   <script src="/pdf-export-wire.js" defer></script>
@@ -429,15 +434,4 @@
 
 
 </body></html>
-  <script src="/public/uuid-on-generate.js"></script>
-  <script src="/public/save-core.js"></script>
-  <script src="/public/load-extend.js"></script>
-  <script src="/public/export-core.js"></script>
-  <script src="/public/clear-patient-info.js"></script>
-  <script src="/public/note-extend.js"></script>
-  <script src="/public/strict-wire.js"></script>
-  <script src="/public/generator-manager.js"></script>
-  <script src="/public/generate-stable.js"></script>
-  <script src="/public/actions-stable.js"></script>
-  <script src="/public/app.js"></script>
-  
+  <!-- This <script src="/ui-list-tweaks.js?v=1" defer></script>  -->
