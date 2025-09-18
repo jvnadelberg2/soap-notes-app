@@ -1,0 +1,615 @@
+{
+  "disciplines": [
+    {
+      "group": "All Specialties",
+      "options": [
+        {
+          "label": "Acupuncture / Traditional East Asian Medicine"
+        },
+        {
+          "label": "Addiction Counselor"
+        },
+        {
+          "label": "Addiction Medicine Physician"
+        },
+        {
+          "label": "Advanced Practice Registered Nurse (APRN)"
+        },
+        {
+          "label": "Allergy / Immunology Physician"
+        },
+        {
+          "label": "Anesthesiologist"
+        },
+        {
+          "label": "Anesthesiology"
+        },
+        {
+          "label": "Athletic Training"
+        },
+        {
+          "label": "Audiologist"
+        },
+        {
+          "label": "Audiology"
+        },
+        {
+          "label": "Behavioral Health Clinic Director"
+        },
+        {
+          "label": "Cardiologist"
+        },
+        {
+          "label": "Cardiology (Inpatient/Consult)"
+        },
+        {
+          "label": "Cardiothoracic Surgeon"
+        },
+        {
+          "label": "Cardiothoracic Surgery"
+        },
+        {
+          "label": "Case Manager"
+        },
+        {
+          "label": "Child & Adolescent Psychiatrist"
+        },
+        {
+          "label": "Chiropractic"
+        },
+        {
+          "label": "CIO / VP IT (Health System or Group)"
+        },
+        {
+          "label": "Clinical Laboratory Scientist"
+        },
+        {
+          "label": "Clinical Mental Health Counselor"
+        },
+        {
+          "label": "Clinical Nurse Specialist"
+        },
+        {
+          "label": "Clinical Pharmacy"
+        },
+        {
+          "label": "Clinical Psychologist"
+        },
+        {
+          "label": "Clinical Social Worker"
+        },
+        {
+          "label": "CMIO (Chief Medical Information Officer)"
+        },
+        {
+          "label": "CMO / Medical Director"
+        },
+        {
+          "label": "CNO / Nursing Director"
+        },
+        {
+          "label": "Coding and Billing Specialist"
+        },
+        {
+          "label": "Colorectal Surgeon"
+        },
+        {
+          "label": "Compliance Officer"
+        },
+        {
+          "label": "Counseling / Psychotherapy"
+        },
+        {
+          "label": "Critical Care / Intensivist"
+        },
+        {
+          "label": "Critical Care Physician / Intensivist"
+        },
+        {
+          "label": "Cytopathologist"
+        },
+        {
+          "label": "Dental Hygiene"
+        },
+        {
+          "label": "Dentistry"
+        },
+        {
+          "label": "Dermatologist"
+        },
+        {
+          "label": "Dermatology (Inpatient consult)"
+        },
+        {
+          "label": "Developmental-Behavioral Pediatrician"
+        },
+        {
+          "label": "Dietitian"
+        },
+        {
+          "label": "Emergency Medical Technician (EMT)"
+        },
+        {
+          "label": "Emergency Medicine"
+        },
+        {
+          "label": "Emergency Medicine Physician"
+        },
+        {
+          "label": "EMS / Paramedicine (Prehospital)"
+        },
+        {
+          "label": "EMS Chief / Medical Director"
+        },
+        {
+          "label": "Endocrinologist"
+        },
+        {
+          "label": "Endocrinology"
+        },
+        {
+          "label": "Family Medicine Physician"
+        },
+        {
+          "label": "Forensic Pathologist"
+        },
+        {
+          "label": "Gastroenterologist"
+        },
+        {
+          "label": "Gastroenterology / Hepatology"
+        },
+        {
+          "label": "General Surgeon"
+        },
+        {
+          "label": "General Surgery"
+        },
+        {
+          "label": "Geneticist (Medical)"
+        },
+        {
+          "label": "Geriatrician"
+        },
+        {
+          "label": "Geriatrics"
+        },
+        {
+          "label": "Group Practice Owner / Managing Partner"
+        },
+        {
+          "label": "Gynecologic Oncologist"
+        },
+        {
+          "label": "Hand Surgeon"
+        },
+        {
+          "label": "Health Information Manager"
+        },
+        {
+          "label": "Hematologist"
+        },
+        {
+          "label": "Hematologist-Oncologist"
+        },
+        {
+          "label": "Hematology"
+        },
+        {
+          "label": "HIM / Coding Director"
+        },
+        {
+          "label": "Home Health"
+        },
+        {
+          "label": "Home Health Agency Owner / Director"
+        },
+        {
+          "label": "Hospice"
+        },
+        {
+          "label": "Hospice & Palliative Medicine Specialist"
+        },
+        {
+          "label": "Hospice Director"
+        },
+        {
+          "label": "Hospital Dentistry / Oral & Maxillofacial Surgery"
+        },
+        {
+          "label": "Hospital Medicine (Internal Medicine)"
+        },
+        {
+          "label": "Hospitalist"
+        },
+        {
+          "label": "Infectious Disease Specialist"
+        },
+        {
+          "label": "Infectious Diseases"
+        },
+        {
+          "label": "Internal Medicine (Outpatient)"
+        },
+        {
+          "label": "Internal Medicine Physician"
+        },
+        {
+          "label": "Interventional Radiologist"
+        },
+        {
+          "label": "Interventional Radiology"
+        },
+        {
+          "label": "Laboratory Technologist"
+        },
+        {
+          "label": "Lactation Consulting"
+        },
+        {
+          "label": "Legal / Compliance Officer"
+        },
+        {
+          "label": "Licensed Marriage and Family Therapist (LMFT)"
+        },
+        {
+          "label": "Licensed Practical Nurse (LPN)"
+        },
+        {
+          "label": "Licensed Professional Clinical Counselor (LPCC)"
+        },
+        {
+          "label": "Licensed Vocational Nurse (LVN)"
+        },
+        {
+          "label": "Massage Therapy"
+        },
+        {
+          "label": "Maternal-Fetal Medicine Specialist"
+        },
+        {
+          "label": "Medical Assistant"
+        },
+        {
+          "label": "Medical Geneticist"
+        },
+        {
+          "label": "Medical Oncologist"
+        },
+        {
+          "label": "Medical Scribe"
+        },
+        {
+          "label": "Medical Social Work / Case Management"
+        },
+        {
+          "label": "Midwifery"
+        },
+        {
+          "label": "Naturopathic Medicine"
+        },
+        {
+          "label": "Neonatologist"
+        },
+        {
+          "label": "Neonatology / NICU"
+        },
+        {
+          "label": "Nephrologist"
+        },
+        {
+          "label": "Nephrology"
+        },
+        {
+          "label": "Neurologist"
+        },
+        {
+          "label": "Neurology (Stroke/Consult)"
+        },
+        {
+          "label": "Neuropathologist"
+        },
+        {
+          "label": "Neurosurgeon"
+        },
+        {
+          "label": "Neurosurgery"
+        },
+        {
+          "label": "Nuclear Medicine Physician"
+        },
+        {
+          "label": "Nurse Anesthetist (CRNA)"
+        },
+        {
+          "label": "Nurse Midwife (CNM)"
+        },
+        {
+          "label": "Nurse Practitioner (NP)"
+        },
+        {
+          "label": "Nutrition & Dietetics (Clinical)"
+        },
+        {
+          "label": "Nutrition & Dietetics (Outpatient)"
+        },
+        {
+          "label": "Obstetrician / Gynecologist (OB/GYN)"
+        },
+        {
+          "label": "Obstetrics & Gynecology (Clinic)"
+        },
+        {
+          "label": "Obstetrics & Gynecology (L&D/Inpatient)"
+        },
+        {
+          "label": "Occupational Medicine Physician"
+        },
+        {
+          "label": "Occupational Therapist (OT)"
+        },
+        {
+          "label": "Occupational Therapy (Inpatient)"
+        },
+        {
+          "label": "Occupational Therapy (Outpatient)"
+        },
+        {
+          "label": "Oncology"
+        },
+        {
+          "label": "Ophthalmologist"
+        },
+        {
+          "label": "Ophthalmology"
+        },
+        {
+          "label": "Optometrist"
+        },
+        {
+          "label": "Optometry"
+        },
+        {
+          "label": "Orthopedic Surgeon"
+        },
+        {
+          "label": "Orthopedic Surgery"
+        },
+        {
+          "label": "Otolaryngologist (ENT)"
+        },
+        {
+          "label": "Otolaryngology (ENT)"
+        },
+        {
+          "label": "Pain Management (Clinic)"
+        },
+        {
+          "label": "Pain Management / Acute Pain Service"
+        },
+        {
+          "label": "Pain Medicine Specialist"
+        },
+        {
+          "label": "Palliative Care (Clinic)"
+        },
+        {
+          "label": "Palliative Care (Inpatient)"
+        },
+        {
+          "label": "Paramedic"
+        },
+        {
+          "label": "Pathologist"
+        },
+        {
+          "label": "Pediatric Cardiologist"
+        },
+        {
+          "label": "Pediatric Endocrinologist"
+        },
+        {
+          "label": "Pediatric Neurologist"
+        },
+        {
+          "label": "Pediatric Oncologist"
+        },
+        {
+          "label": "Pediatric Pulmonologist"
+        },
+        {
+          "label": "Pediatrician"
+        },
+        {
+          "label": "Pediatrics (Clinic)"
+        },
+        {
+          "label": "Pediatrics (Inpatient)"
+        },
+        {
+          "label": "Pharmacist"
+        },
+        {
+          "label": "Physical Medicine & Rehabilitation (Inpatient)"
+        },
+        {
+          "label": "Physical Medicine & Rehabilitation (Outpatient)"
+        },
+        {
+          "label": "Physical Medicine & Rehabilitation Physician"
+        },
+        {
+          "label": "Physical Therapist (PT)"
+        },
+        {
+          "label": "Physical Therapy (Inpatient)"
+        },
+        {
+          "label": "Physical Therapy (Outpatient)"
+        },
+        {
+          "label": "Physician Assistant (PA)"
+        },
+        {
+          "label": "Plastic Surgeon"
+        },
+        {
+          "label": "Podiatry"
+        },
+        {
+          "label": "Practice Administrator / Clinic Ops Director"
+        },
+        {
+          "label": "Preventive Medicine Physician"
+        },
+        {
+          "label": "Primary Care / Family Medicine"
+        },
+        {
+          "label": "Primary Care Physician"
+        },
+        {
+          "label": "Professional Counselor"
+        },
+        {
+          "label": "Psychiatrist"
+        },
+        {
+          "label": "Psychiatry"
+        },
+        {
+          "label": "Psychologist (Clinical)"
+        },
+        {
+          "label": "Psychologist (Counseling)"
+        },
+        {
+          "label": "Psychologist (Neuropsychology)"
+        },
+        {
+          "label": "Psychology"
+        },
+        {
+          "label": "PT/OT/SLP Department Director"
+        },
+        {
+          "label": "Public Health Nursing / Community Health"
+        },
+        {
+          "label": "Pulmonary Medicine"
+        },
+        {
+          "label": "Pulmonologist"
+        },
+        {
+          "label": "Quality & Safety Director"
+        },
+        {
+          "label": "Radiation Oncologist"
+        },
+        {
+          "label": "Radiologist (Diagnostic)"
+        },
+        {
+          "label": "Recreational Therapist"
+        },
+        {
+          "label": "Reproductive Endocrinologist / Infertility Specialist"
+        },
+        {
+          "label": "Residency/Fellowship Program Director"
+        },
+        {
+          "label": "Respiratory Therapist (RT)"
+        },
+        {
+          "label": "Respiratory Therapy"
+        },
+        {
+          "label": "Revenue Cycle Director"
+        },
+        {
+          "label": "Rheumatologist"
+        },
+        {
+          "label": "Rheumatology"
+        },
+        {
+          "label": "Risk Management Director"
+        },
+        {
+          "label": "School Health"
+        },
+        {
+          "label": "Service Line Director"
+        },
+        {
+          "label": "Sleep Medicine Specialist"
+        },
+        {
+          "label": "SNF / Inpatient Rehab Administrator"
+        },
+        {
+          "label": "Speech-Language Pathologist (SLP)"
+        },
+        {
+          "label": "Speech-Language Pathology (Inpatient)"
+        },
+        {
+          "label": "Speech-Language Pathology (Outpatient)"
+        },
+        {
+          "label": "Sports Medicine"
+        },
+        {
+          "label": "Sports Medicine Physician"
+        },
+        {
+          "label": "Substance Abuse Counselor"
+        },
+        {
+          "label": "Substance Use Treatment"
+        },
+        {
+          "label": "Telehealth Platform Product Manager"
+        },
+        {
+          "label": "Telemedicine"
+        },
+        {
+          "label": "Thoracic Surgeon"
+        },
+        {
+          "label": "Transplant Surgeon"
+        },
+        {
+          "label": "Trauma Surgeon"
+        },
+        {
+          "label": "University Clinic / Student Health Director"
+        },
+        {
+          "label": "Urgent Care"
+        },
+        {
+          "label": "Urgent Care Chain Operations Lead"
+        },
+        {
+          "label": "Urologist"
+        },
+        {
+          "label": "Urology"
+        },
+        {
+          "label": "Vascular Surgeon"
+        },
+        {
+          "label": "Vascular Surgery"
+        },
+        {
+          "label": "Wound Care"
+        }
+      ]
+    }
+  ]
+}

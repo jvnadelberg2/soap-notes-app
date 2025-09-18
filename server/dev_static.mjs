@@ -1,0 +1,10 @@
+import express from "express";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+const pub = path.resolve(__dirname, "../public");
+app.use(express.static(pub, { fallthrough: false }));
+app.get("/", (req, res) => res.sendFile(path.join(pub, "index.html")));
+const port = 3003;
+app.listen(port, () => console.log(`dev static on http://127.0.0.1:${port}`));

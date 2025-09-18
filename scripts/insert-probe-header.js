@@ -1,0 +1,12 @@
+const fs = require('fs');
+const p = 'routes/export-pdf.js';
+let s = fs.readFileSync(p, 'utf8');
+if (s.includes("X-Route-Probe")) process.exit(0);
+const start = s.indexOf("router.post('/export/pdf'");
+if (start < 0) process.exit(2);
+const brace = s.indexOf('{', start);
+if (brace < 0) process.exit(3);
+const insertAt = brace + 1;
+const probe = "\n    res.setHeader('X-Route-Probe','routes/export-pdf.js');\n";
+s = s.slice(0, insertAt) + probe + s.slice(insertAt);
+fs.writeFileSync(p, s);

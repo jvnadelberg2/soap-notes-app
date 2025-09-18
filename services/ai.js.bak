@@ -1,0 +1,74 @@
+'use strict';
+/**
+ * services/ai.js (CommonJS)
+ * Minimal adapter that calls a local Ollama server to generate SOAP sections.
+ * - Uses the selected `model` sent from the UI (e.g., "llama3", "llama3:70b", "gpt-oss:20b")
+ * - POSTs to http://127.0.0.1:11434/api/generate
+ * - Returns a flat text with S/O/A/P headings; the route will split it into sections
+ *
+ * If you are not using Ollama, replace the `generate` function with your provider's API call.
+ */
+const { request } = require('undici');
+
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434/api/generate';
+
+function buildPrompt({ subjective = '', objective = '', noteType = 'SOAP', specialty = '' }) {
+  const spec = specialty ? `Specialty: ${specialty}\n` : '';
+  return [
+    'You are a clinician assistant writing a concise, clinically useful ' + noteType + ' note.',
+    'Write in clear, professional medical prose. Do not invent data.',
+    'Return the note using EXACTLY these four section headers on their own lines:',
+    'Subjective:',
+    'Objective:',
+    'Assessment:',
+    'Plan:',
+    '',
+    'If a section has insufficient data, leave it blank (do not write "None provided.").',
+    'Do not include any extra commentary or headings.',
+    '',
+    spec,
+    'Available inputs to use:',
+    '--- Subjective inputs ---',
+    subjective || '(none)',
+    '',
+    '--- Objective inputs ---',
+    objective || '(none)',
+    '',
+    'Now produce the final note sections:'
+  ].join('\n');
+}
+
+async function callOllama({ model, prompt, options = {} }) {
+  const body = {
+    model: model || 'llama3',
+    prompt,
+    options: Object.assign({ temperature: 0.2 }, options),
+    stream: false
+  };
+  const res = await request(OLLAMA_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const txt = await res.body.text();
+  try {
+    const json = JSON.parse(txt);
+    return json.response || json.text || txt;
+  } catch {
+    return txt;
+  }
+}
+
+/**
+ * Preferred entrypoint: return flat text the route can split.
+ * Accepts payload fields from routes/generate-note.js
+ */
+async function generate({ body, noteType, assist, model, specialty, subjective, objective }) {
+  const prompt = buildPrompt({ subjective, objective, noteType, specialty });
+  const flat = await callOllama({ model, prompt });
+  return { text: flat };
+}
+
+module.exports = {
+  generate
+};
