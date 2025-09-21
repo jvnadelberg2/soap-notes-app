@@ -1,0 +1,53 @@
+.note&&data.note.finalizedAt){const fin=document.getElementById("finalizedAt");if(fin)fin.value=(data.note.finalizedAt||"").replace("T"," ").replace("Z","")}await refreshList();const fmtEl=(document.getElementById("noteType")||document.getElementById("note-format"));const fmt=((fmtEl&&(fmtEl.value||"").toLowerCase())==="birp")?"birp":"soap";const url="/notes/"+encodeURIComponent(uuid)+"/pdf?format="+encodeURIComponent(fmt);window.open(url,"_blank")} function wire()/' public/app.js > public/app.js.tmp && mv public/app.js.tmp public/app.js
+perl -0777 -pe 's/(function\s+wire\(\)\s*\{[^}]*?refreshList\(\);\s*)/$1 const fbtn=document.getElementById("btn-finalize");if(fbtn)fbtn.addEventListener("click",e=>{e.preventDefault();finalizeCurrent()},{passive:true});/s' public/app.js > public/app.js.tmp && mv public/app.js.tmp public/app.js
+perl -0777 -pe 's/const tdUUID = document.createElement\(\'td\'\); tdUUID.textContent = n\.uuid \|\| \'\';/const tdUUID=document.createElement("td");tdUUID.textContent=n.uuid||"";if(n.finalizedAt){const badge=document.createElement("span");badge.textContent="  • FINAL";badge.style.marginLeft="6px";badge.style.fontSize="12px";badge.style.color="#0a7";tdUUID.appendChild(badge)}/' public/app.js > public/app.js.tmp && mv public/app.js.tmp public/app.js
+perl -0777 -pe 's/tdAct\.appendChild\(bDel\);/if(!n.finalizedAt)tdAct.appendChild(bDel);/' public/app.js > public/app.js.tmp && mv public/app.js.tmp public/app.js
+
+zsh: event not found: n.finalizedAt)tdAct.appendChild(bDel)
+jonnadelberg@Jons-MacBook-Pro soap-notes-app % clear
+
+jonnadelberg@Jons-MacBook-Pro soap-notes-app % vi uuid/finalize
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+# Cosign (future)
+
+* Use a **separate** cosign signature block:
+
+  * `cosign`: `{ cosignedBy, cosignedAt, signature, signatureAlg, kid }`
+* Choice (decide once, then freeze):
+
+  * **A. Dual signatures** (recommended): cosign signs **the same canonical payload** plus `cosignedAt`/`cosignedBy` included as covered fields for the cosign signature; original author signature remains unchanged.
+  * **B. Re-finalize** with a single combined signature (less ideal audit-wise).
+
+---
+
+If you want this as a repo file (e.g., `docs/canonical-dataset-spec.md` or a JSON Schema file), say the word and I’ll format it exactly how you want—still no code unless you ask.
+
+~                                                                               
+"uuid/finalize"
+"uuid/finalize" E212: Can't open file for writing
+Press ENTER or type command to continue
+

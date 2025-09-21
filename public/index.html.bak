@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Clinical Note</title>
+  <style>
+    :root{ --gap:12px; --border:#e5e5e5; --text:#111; --muted:#777; --brand:#111; --chev:28px; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:0;color:var(--text);background:#fff}
+    header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;z-index:3;flex-wrap:wrap}
+    header h1{font-size:18px;margin:0;font-weight:600;margin-right:8px}
+    .btn{padding:8px 12px;border-radius:8px;border:1px solid #ccc;background:#fafafa;cursor:pointer}
+    .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .spacer{flex:1 1 auto}
+    main{padding:16px;max-width:1100px;margin:0 auto}
+    .grid{display:grid;gap:var(--gap)}
+    .cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--gap);margin-bottom:8px}
+    label{display:block;font-size:12px;color:#555;margin:6px 0 4px}
+    input,textarea,select{width:100%;padding:8px;border:1px solid #d0d0d0;border-radius:6px;font-size:14px;background:#fff;color:#111;autocomplete:off}
+    textarea{min-height:96px;line-height:1.35;resize:vertical;overflow:auto}
+    .section{margin:16px 0;border:1px solid #eee;border-radius:12px}
+    .section-header{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;user-select:none}
+    .section-header:focus{outline:3px solid #cde; outline-offset:2px; border-radius:10px}
+    .section-body{padding:0 12px 12px 12px}
+    .muted{color:var(--muted);font-size:12px}
+    .chev{width:var(--chev);height:var(--chev);flex:0 0 var(--chev);display:inline-flex;align-items:center;justify-content:center}
+    .rotate{transform:rotate(90deg);transition:transform .15s ease}
+    .collapsed .rotate{transform:rotate(0deg)}
+    .right-adorn{display:flex;align-items:center;gap:6px}
+    .unit{font-size:12px;color:#666;min-width:30px;text-align:right}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Clinical Note</h1>
+    <!-- REQUIRED BUTTONS ONLY -->
+    <button id="clearPatient" class="btn" title="Remove all patient-related data from this browser">Clear Patient Data</button>
+    <button id="generateNote" class="btn">Generate Note</button>
+    <button id="exportPdf" class="btn primary">Export PDF</button>
+    <span class="spacer"></span>
+    <label class="muted" style="display:flex;gap:6px;align-items:center">
+      <input id="useInference" type="checkbox" /> Use inference
+    </label>
+    <label class="muted" style="display:flex;gap:6px;align-items:center">
+      <input id="redact" type="checkbox" /> Redact identifiers
+    </label>
+  </header>
+
+  <main>
+    <!-- Clinician -->
+    <div class="section" id="sec-clinician">
+      <div class="section-header" tabindex="0" data-toggle="clinicianBody">
+        <div class="chev"><svg class="rotate" width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l8 7-8 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="margin:0;font-size:16px">Clinician</h3>
+      </div>
+      <div class="section-body" id="clinicianBody">
+        <div class="row">
+          <div><label for="provider">Provider</label><input id="provider" type="text" autocomplete="off" /></div>
+          <div>
+            <label for="credentials">Credentials</label>
+            <select id="credentials">
+              <option value=""></option>
+              <option>MD</option><option>DO</option><option>NP</option><option>PA</option>
+              <option>RN</option><option>LCSW</option><option>PsyD</option><option>PhD</option>
+            </select>
+          </div>
+          <div>
+            <label for="npi">NPI</label>
+            <input id="npi" type="text" inputmode="numeric" maxlength="10" pattern="\d{10}" autocomplete="off" />
+          </div>
+          <div><label for="clinic">Clinic / Org</label><input id="clinic" type="text" autocomplete="off" /></div>
+        </div>
+        <div class="row">
+          <div><label for="providerLocation">Provider location</label><input id="providerLocation" type="text" autocomplete="off" /></div>
+          <div>
+            <label for="encounterStart">Encounter start</label>
+            <div class="right-adorn">
+              <input id="encounterStart" type="datetime-local" />
+              <button type="button" class="btn" data-now="encounterStart">Now</button>
+            </div>
+          </div>
+          <div>
+            <label for="encounterEnd">Encounter end</label>
+            <div class="right-adorn">
+              <input id="encounterEnd" type="datetime-local" />
+              <button type="button" class="btn" data-now="encounterEnd">Now</button>
+            </div>
+          </div>
+        </div>
+        <div class="muted">Clinician values persist across reloads and Clear actions.</div>
+      </div>
+    </div>
+
+    <!-- Patient -->
+    <div class="section" id="sec-patient">
+      <div class="section-header" tabindex="0" data-toggle="patientBody">
+        <div class="chev"><svg class="rotate" width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l8 7-8 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="margin:0;font-size:16px">Patient</h3>
+      </div>
+      <div class="section-body" id="patientBody">
+        <div class="row">
+          <div><label for="patient">Name</label><input id="patient" type="text" autocomplete="off" /></div>
+          <div><label for="dob">DOB</label><input id="dob" type="date" /></div>
+          <div><label for="sex">Sex</label><select id="sex"><option value=""></option><option>F</option><option>M</option><option>X</option></select></div>
+          <div><label for="mrn">MRN</label><input id="mrn" type="text" autocomplete="off" /></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Telehealth -->
+    <div class="section" id="sec-tele">
+      <div class="section-header" tabindex="0" data-toggle="teleBody">
+        <div class="chev"><svg class="rotate" width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l8 7-8 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="margin:0;font-size:16px">Telehealth</h3>
+      </div>
+      <div class="section-body" id="teleBody">
+        <div class="row">
+          <div><label for="telePlatform">Platform</label><input id="telePlatform" type="text" autocomplete="off"/></div>
+          <div>
+            <label style="margin:0;display:flex;gap:8px;align-items:center">
+              <input id="teleConsent" type="checkbox" /> Consent obtained
+            </label>
+          </div>
+          <div>
+            <label for="teleConsentAt">Consent time</label>
+            <div class="right-adorn">
+              <input id="teleConsentAt" type="datetime-local"/>
+              <button type="button" class="btn" data-now="teleConsentAt">Now</button>
+            </div>
+          </div>
+          <div><label for="telePatientLocation">Patient location</label><input id="telePatientLocation" type="text" autocomplete="off"/></div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="teleModality">Modality</label>
+            <select id="teleModality">
+              <option value=""></option>
+              <option value="video">Video</option>
+              <option value="audio">Audio-only</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Note Type & Chief Complaint -->
+    <div class="section" id="sec-type">
+      <div class="section-header" tabindex="0" data-toggle="typeBody">
+        <div class="chev"><svg class="rotate" width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l8 7-8 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="margin:0;font-size:16px">Note Type & Chief Complaint</h3>
+      </div>
+      <div class="section-body" id="typeBody">
+        <div class="row">
+          <div><label for="model">Note type</label>
+            <select id="model">
+              <option value="soap">SOAP</option>
+              <option value="birp">BIRP</option>
+            </select>
+          </div>
+          <div style="grid-column: span 3;">
+            <label for="chiefComplaint">Chief Complaint</label>
+            <textarea id="chiefComplaint" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Note Text -->
+    <div class="section" id="sec-note">
+      <div class="section-header" tabindex="0" data-toggle="noteBody">
+        <div class="chev"><svg class="rotate" width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l8 7-8 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="margin:0;font-size:16px">Note Text</h3>
+      </div>
+      <div class="section-body" id="noteBody">
+        <!-- SOAP -->
+        <div id="soapFields" class="grid cols-2">
+          <div><label for="subjective">Subjective</label><textarea id="subjective"></textarea></div>
+          <div><label for="objective">Objective</label><textarea id="objective"></textarea></div>
+          <div><label for="assessment">Assessment</label><textarea id="assessment"></textarea></div>
+          <div><label for="plan">Plan</label><textarea id="plan"></textarea></div>
+        </div>
+        <!-- BIRP -->
+        <div id="birpFields" class="grid cols-2" style="display:none">
+          <div><label for="behavior">Behavior</label><textarea id="behavior"></textarea></div>
+          <div><label for="intervention">Intervention</label><textarea id="intervention"></textarea></div>
+          <div><label for="response">Response</label><textarea id="response"></textarea></div>
+          <div><label for="planBirp">Plan</label><textarea id="planBirp"></textarea></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vitals (structured) -->
+    <div class="section" id="sec-vitals">
+      <div class="section-header" tabindex="0" data-toggle="vitalsBody">
+        <div class="chev"><svg class="rotate" width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l8 7-8 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="margin:0;font-size:16px">Vitals</h3>
+      </div>
+      <div class="section-body" id="vitalsBody">
+        <div class="row">
+          <div><label for="bpSys">BP Systolic</label><input id="bpSys" type="number" /></div>
+          <div><label for="bpDia">BP Diastolic</label><input id="bpDia" type="number" /></div>
+          <div><label for="hr">Heart Rate</label><div class="right-adorn"><input id="hr" type="number" /><span class="unit">bpm</span></div></div>
+          <div><label for="temp">Temperature</label><div class="right-adorn"><input id="temp" type="number" step="0.1" /><span class="unit">°F</span></div></div>
+        </div>
+        <div class="row">
+          <div><label for="rr">Respiratory Rate</label><input id="rr" type="number" /></div>
+          <div><label for="spo2">SpO₂</label><div class="right-adorn"><input id="spo2" type="number" step="0.1" /><span class="unit">%</span></div></div>
+          <div><label for="height">Height</label><div class="right-adorn"><input id="height" type="number" step="0.1" /><span class="unit">cm</span></div></div>
+          <div><label for="weight">Weight</label><div class="right-adorn"><input id="weight" type="number" step="0.1" /><span class="unit">kg</span></div></div>
+        </div>
+        <div class="muted">BMI: <span id="bmiVal">—</span></div>
+      </div>
+    </div>
+
+    <!-- Histories -->
+    <div class="section" id="sec-histories">
+      <div class="section-header" tabindex="0" data-toggle="historiesBody">
+        <div class="chev"><svg class="rotate" width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l8 7-8 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="margin:0;font-size:16px">Histories</h3>
+      </div>
+      <div class="section-body" id="historiesBody">
+        <div class="grid cols-2">
+          <div id="blkPMH"><label for="pmh">Past Medical History</label><textarea id="pmh"></textarea></div>
+          <div id="blkPSH"><label for="psh">Past Surgical History</label><textarea id="psh"></textarea></div>
+          <div id="blkFH"><label for="familyHistory">Family History</label><textarea id="familyHistory"></textarea></div>
+          <div id="blkSH"><label for="socialHistory">Social History</label><textarea id="socialHistory"></textarea></div>
+          <div id="blkROS" style="grid-column: span 2;"><label for="ros">Review of Systems</label><textarea id="ros"></textarea></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Diagnostics -->
+    <div class="section" id="sec-dx">
+      <div class="section-header" tabindex="0" data-toggle="dxBody">
+        <div class="chev"><svg class="rotate" width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l8 7-8 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="margin:0;font-size:16px">Diagnostics</h3>
+      </div>
+      <div class="section-body" id="dxBody">
+        <div id="blkLabs"><label for="labs">Imaging / Labs</label><textarea id="labs"></textarea></div>
+        <div id="blkMeds"><label for="medications">Medications</label><textarea id="medications"></textarea></div>
+        <div id="blkAllergies"><label for="allergies">Allergies</label><textarea id="allergies"></textarea></div>
+        <div id="blkInstructions"><label for="instructions">Instructions</label><textarea id="instructions"></textarea></div>
+        <div id="blkFollowup"><label for="followup">Follow-up</label><textarea id="followup"></textarea></div>
+      </div>
+    </div>
+
+    <!-- Addendum -->
+    <div class="section" id="sec-addendum">
+      <div class="section-header" tabindex="0" data-toggle="addendumBody">
+        <div class="chev"><svg class="rotate" width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l8 7-8 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="margin:0;font-size:16px">Addendum</h3>
+      </div>
+      <div class="section-body" id="addendumBody">
+        <textarea id="addendum" style="min-height:140px"></textarea>
+      </div>
+    </div>
+
+    <!-- Generated Note -->
+    <div class="section" id="sec-generated">
+      <div class="section-header" tabindex="0" data-toggle="generatedBody">
+        <div class="chev"><svg class="rotate" width="22" height="22" viewBox="0 0 24 24"><path d="M8 5l8 7-8 7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 style="margin:0;font-size:16px">Generated Note</h3>
+      </div>
+      <div class="section-body" id="generatedBody">
+        <textarea id="generatedNote" style="min-height:220px"></textarea>
+        <div class="muted">In BIRP, extra sections go to Supplemental Information (not the model).</div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function(){
+      const MODEL_KEY = 'modelPersist';
+      const CLINICIAN_KEY = 'clinician_persist_forever_v1';
+      const FORM_KEY = 'note_form_v3';
+
+      const $ = (id)=>document.getElementById(id);
+
+      function toggleSection(header){
+        const bodyId = header.getAttribute('data-toggle');
+        const body = $(bodyId);
+        const sec = header.parentElement;
+        sec.classList.toggle('collapsed');
+        body.style.display = sec.classList.contains('collapsed') ? 'none' : '';
+      }
+      function wireSectionToggles(){
+        document.querySelectorAll('.section-header').forEach(h=>{
+          h.addEventListener('click', ()=>toggleSection(h));
+          h.addEventListener('keydown', (e)=>{ if (e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleSection(h);} });
+          const b = $(h.getAttribute('data-toggle')); if (b) b.style.display='';
+        });
+      }
+
+      function applyModelVisibility(val){
+        const soap = $('soapFields'), birp = $('birpFields');
+        const isBirp = String(val).toLowerCase()==='birp';
+        soap.style.display = isBirp ? 'none' : '';
+        birp.style.display = isBirp ? '' : '';
+      }
+
+      function stampNow(id){
+        const el = $(id); if (!el) return;
+        const d = new Date(), p=n=>String(n).padStart(2,'0');
+        el.value = d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+        el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change'));
+      }
+
+      function computeBMI(){
+        const h = parseFloat($('height')?.value||''); // cm
+        const w = parseFloat($('weight')?.value||''); // kg
+        const bmiSpan = $('bmiVal');
+        if (!h || !w){ bmiSpan.textContent = '—'; return; }
+        const m = h/100.0;
+        const bmi = w / (m*m);
+        bmiSpan.textContent = isFinite(bmi) ? bmi.toFixed(1) : '—';
+      }
+
+      function guardNPI(e){
+        let v = e.target.value.replace(/\D+/g,'');
+        if (v.length > 10) v = v.slice(0,10);
+        e.target.value = v;
+      }
+
+      function saveClinician(){
+        const data = {
+          provider: $('provider')?.value || '',
+          credentials: $('credentials')?.value || '',
+          npi: $('npi')?.value || '',
+          clinic: $('clinic')?.value || '',
+          providerLocation: $('providerLocation')?.value || ''
+        };
+        try{ localStorage.setItem(CLINICIAN_KEY, JSON.stringify(data)); }catch(e){}
+      }
+      function loadClinician(){
+        try{
+          const raw = localStorage.getItem(CLINICIAN_KEY); if (!raw) return;
+          const d = JSON.parse(raw);
+          ['provider','credentials','npi','clinic','providerLocation'].forEach(id=>{ if ($(id)) $(id).value = d[id] || ''; });
+        }catch(e){}
+      }
+      function wireClinicianPersist(){
+        ['provider','credentials','npi','clinic','providerLocation'].forEach(id=>{
+          const el = $(id); if (!el) return;
+          el.addEventListener('input', saveClinician, {passive:true});
+          el.addEventListener('change', saveClinician, {passive:true});
+        });
+        const npi = $('npi'); if (npi){ npi.addEventListener('input', guardNPI, {passive:true}); }
+      }
+
+      function applyModelPersist(){
+        const sel = $('model');
+        const persisted = localStorage.getItem(MODEL_KEY);
+        if (persisted) sel.value = persisted;
+        applyModelVisibility(sel.value);
+        sel.addEventListener('change', ()=>{
+          localStorage.setItem(MODEL_KEY, sel.value);
+          applyModelVisibility(sel.value);
+        });
+      }
+
+      function composeNote(){
+        const model = ($('model')?.value || 'soap').toLowerCase();
+        const lines = [];
+        const cc = $('chiefComplaint')?.value;
+        if (cc) lines.push('Chief Complaint: ' + cc);
+
+        if (model === 'birp'){
+          const B = $('behavior')?.value, I = $('intervention')?.value, R = $('response')?.value, P = $('planBirp')?.value;
+          if (B) lines.push('Behavior: ' + B);
+          if (I) lines.push('Intervention: ' + I);
+          if (R) lines.push('Response: ' + R);
+          if (P) lines.push('Plan: ' + P);
+          // mention supplemental if any non-empty outside BIRP fields
+          const supplementalIds = ['bpSys','bpDia','hr','temp','rr','spo2','height','weight','pmh','psh','familyHistory','socialHistory','ros','labs','medications','allergies','instructions','followup','addendum'];
+          const hasSupp = supplementalIds.some(id=>{ const el=$(id); return el && String(el.value||'').trim()!==''; });
+          if (hasSupp) lines.push('Additional clinical data available in Supplemental Information.');
+        } else {
+          // SOAP
+          const S = $('subjective')?.value, O = $('objective')?.value, A = $('assessment')?.value, P = $('plan')?.value;
+          if (S) lines.push('Subjective: ' + S);
+          if (O) {
+            // include vitals inline if present
+            const parts = [];
+            const v = id=>$(id)?.value;
+            if (v('bpSys')||v('bpDia')) parts.push('BP ' + (v('bpSys')||'?') + '/' + (v('bpDia')||'?'));
+            if (v('hr')) parts.push('HR ' + v('hr') + ' bpm');
+            if (v('temp')) parts.push('Temp ' + v('temp') + ' °F');
+            if (v('rr')) parts.push('RR ' + v('rr'));
+            if (v('spo2')) parts.push('SpO₂ ' + v('spo2') + '%');
+            if (v('height')) parts.push('Ht ' + v('height') + ' cm');
+            if (v('weight')) parts.push('Wt ' + v('weight') + ' kg');
+            const bmi = $('bmiVal')?.textContent;
+            const vitals = parts.join('; ') + (bmi && bmi!=='—' ? '; BMI ' + bmi : '');
+            lines.push('Objective: ' + O + (parts.length? '\n\nVitals: ' + vitals : ''));
+          } else {
+            const parts = [];
+            const v = id=>$(id)?.value;
+            if (v('bpSys')||v('bpDia')) parts.push('BP ' + (v('bpSys')||'?') + '/' + (v('bpDia')||'?'));
+            if (v('hr')) parts.push('HR ' + v('hr') + ' bpm');
+            if (v('temp')) parts.push('Temp ' + v('temp') + ' °F');
+            if (v('rr')) parts.push('RR ' + v('rr'));
+            if (v('spo2')) parts.push('SpO₂ ' + v('spo2') + '%');
+            if (v('height')) parts.push('Ht ' + v('height') + ' cm');
+            if (v('weight')) parts.push('Wt ' + v('weight') + ' kg');
+            const bmi = $('bmiVal')?.textContent;
+            if (parts.length) lines.push('Vitals: ' + parts.join('; ') + (bmi && bmi!=='—' ? '; BMI ' + bmi : ''));
+          }
+          if (A) lines.push('Assessment: ' + A);
+          if (P) lines.push('Plan: ' + P);
+          [['PMH','pmh'],['PSH','psh'],['Family History','familyHistory'],['Social History','socialHistory'],['ROS','ros'],['Imaging/Labs','labs'],['Medications','medications'],['Allergies','allergies'],['Instructions','instructions'],['Follow-up','followup']]
+            .forEach(([label,id])=>{ const v=$(id)?.value; if (v && v.trim()!=='') lines.push(label+': ' + v); });
+        }
+
+        $('generatedNote').value = lines.join('\n\n');
+        $('generatedNote').scrollTop = 0;
+      }
+
+      function wireButtons(){
+        const gen = $('generateNote'); if (gen) gen.addEventListener('click', composeNote);
+        const pdf = $('exportPdf'); /* wired by server-side JS already */
+        const clear = $('clearPatient');
+        if (clear){
+          clear.addEventListener('click', ()=>{
+            // wipe local storage for form data (but not clinician)
+            try{ localStorage.removeItem(FORM_KEY); }catch(e){}
+            // clear fields (patient + tele + note + vitals + histories etc.)
+            const ids = ['patient','dob','sex','mrn','telePlatform','teleConsent','teleConsentAt','telePatientLocation','teleModality','chiefComplaint','subjective','objective','assessment','plan','behavior','intervention','response','planBirp','bpSys','bpDia','hr','temp','rr','spo2','height','weight','pmh','psh','familyHistory','socialHistory','ros','labs','medications','allergies','instructions','followup','addendum','generatedNote','encounterStart','encounterEnd'];
+            ids.forEach(id=>{ const el=$(id); if (!el) return; if (el.type==='checkbox') el.checked=false; else el.value=''; });
+            computeBMI();
+          });
+        }
+      }
+
+      function persistForm(){
+        const ids = ['encounterStart','encounterEnd','patient','dob','sex','mrn','telePlatform','teleConsent','teleConsentAt','telePatientLocation','teleModality','model','chiefComplaint','subjective','objective','assessment','plan','behavior','intervention','response','planBirp','bpSys','bpDia','hr','temp','rr','spo2','height','weight','pmh','psh','familyHistory','socialHistory','ros','labs','medications','allergies','instructions','followup','addendum','redact','useInference','generatedNote'];
+        function save(){
+          const data = {};
+          ids.forEach(id=>{
+            const el=$(id); if (!el) return;
+            data[id] = (el.type==='checkbox') ? (el.checked?'yes':'no') : (el.value||'');
+          });
+          try{ localStorage.setItem(FORM_KEY, JSON.stringify(data)); }catch(e){}
+        }
+        function load(){
+          try{
+            const raw = localStorage.getItem(FORM_KEY); if (!raw) return;
+            const d = JSON.parse(raw);
+            Object.keys(d).forEach(k=>{
+              const el=$(k); if (!el) return;
+              if (el.type==='checkbox') el.checked = (String(d[k]).toLowerCase()==='yes');
+              else el.value = d[k];
+            });
+          }catch(e){}
+        }
+        load();
+        ids.forEach(id=>{ const el=$(id); if (!el) return; el.addEventListener('input', save, {passive:true}); el.addEventListener('change', save, {passive:true}); });
+      }
+
+      function wireMisc(){
+        // Now buttons
+        document.querySelectorAll('button[data-now]').forEach(btn=>{
+          btn.addEventListener('click', ()=>{ stampNow(btn.getAttribute('data-now')); });
+        });
+        // consent auto-stamp
+        const cb = $('teleConsent'), tca=$('teleConsentAt');
+        if (cb){ cb.addEventListener('change', ()=>{ if (cb.checked && tca && !tca.value){ stampNow('teleConsentAt'); } }); }
+        // BMI listeners
+        ['height','weight'].forEach(id=>{
+          const el=$(id); if (!el) return;
+          el.addEventListener('input', computeBMI, {passive:true});
+          el.addEventListener('change', computeBMI, {passive:true});
+        });
+        computeBMI();
+      }
+
+      function init(){
+        wireSectionToggles();
+        loadClinician();
+        wireClinicianPersist();
+        applyModelPersist();
+        persistForm();
+        wireButtons();
+        wireMisc();
+      }
+      document.addEventListener('DOMContentLoaded', init);
+    })();
+  </script>
+
+  <script src="./persist-ui.js"></script>
+  <script src="./export-options.js"></script>
+  <script src="./actions-stable.js"></script>
+</body>
+</html>
