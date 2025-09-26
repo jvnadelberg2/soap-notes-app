@@ -1,0 +1,41 @@
+[
+  {
+    "phase": 1,
+    "items": [
+      "Implement digital signature capture (clinician signs) and display 'Signed by [Clinician]' on PDF exports",
+      "Add digital signature metadata to FHIR export bundles",
+      "Enable streaming note generation (display text as it arrives instead of waiting for completion)",
+      "Finish ICD-10 full import (≈75k codes) with search UI, indexing, and cron updater",
+      "Add ICD-10 code hygiene checks (verify FY2026 completeness)",
+      "Unit test coverage: SOAP/BIRP generation, ICD search, PDF export",
+      "Basic auth polish: enforce secure handling in UI",
+      "Documentation pass: README, .env.example, deployment instructions"
+    ]
+  },
+  {
+    "phase": 2,
+    "items": [
+      "Implement HIPAA safeguards: encrypted local storage, purge old notes policy, audit logging",
+      "Add FHIR export improvements (support Condition, Encounter, Practitioner resources)",
+      "Integrate clinician/provider identity into FHIR exports",
+      "Improve ICD search: synonym expansion, scoring tweaks, age/sex filters",
+      "Docker + docker-compose production build (app + Ollama + Postgres/SQLite for ICD index)",
+      "Add observability: structured logging, metrics, request tracing",
+      "UI persistence polish: remember dropdown selections, assist level, telehealth toggle",
+      "Refactor frontend scripts: remove unused code, unify SOAP vs BIRP paths"
+    ]
+  },
+  {
+    "phase": 3,
+    "items": [
+      "Advanced auth: support OAuth or SSO login for multi-user deployments",
+      "Role-based permissions (scribe vs clinician)",
+      "Enterprise deployment docs (Kubernetes, scaling Ollama/OpenAI provider)",
+      "Performance tuning: background ICD indexing, async exports",
+      "Optional: speech-to-text input for clinicians",
+      "Optional: templating system for specialties (custom note styles)",
+      "UI polish: specialty-specific helper text, clinician branding/logo on PDFs",
+      "Marketing site + demo environment for potential buyers"
+    ]
+  }
+]

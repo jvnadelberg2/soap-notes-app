@@ -1,0 +1,73 @@
+<!-- BEGIN:ARCH-COMMENT
+File: public/todo.html
+Purpose: SOAP Notes TODO page in the SOAP/BIRP UI.
+Notes: Contains UI code that interacts with API routes; ensure buttons are disabled during in-flight actions and Draft/Final states are visible.
+END:BEGIN:ARCH-COMMENT -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SOAP Notes TODO</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;padding:24px;max-width:900px;margin:0 auto}
+    h1{margin:0 0 16px}
+    .small{color:#6b7280;font-size:12px}
+    ul{padding-left:18px}
+    li{margin:6px 0}
+    input[type=text]{width:100%;padding:10px;font-size:14px}
+    button{padding:8px 12px}
+    .row{display:flex;gap:8px;margin:12px 0}
+    .pill{display:inline-block;padding:2px 8px;border:1px solid #e5e7eb;border-radius:999px;font-size:12px;margin-left:6px}
+  </style>
+</head>
+<body>
+  <h1>SOAP Notes TODO</h1>
+  <div class="small">This list is stored at /api/todo and versioned in data/todo.json</div>
+
+  <div class="row">
+    <input id="newItem" placeholder="Add a task…">
+    <button id="addBtn">Add</button>
+  </div>
+
+  <div id="meta" class="small"></div>
+  <ul id="list"></ul>
+
+  <script>
+    async function load(){
+      const r = await fetch('/api/todo');
+      const j = await r.json();
+      document.getElementById('meta').textContent = 'Updated ' + (new Date(j.updatedAt)).toLocaleString() + ' • ' + j.items.length + ' items';
+      const ul = document.getElementById('list'); ul.innerHTML = '';
+      j.items.forEach(it=>{
+        const li = document.createElement('li');
+        const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = !!it.done;
+        cb.addEventListener('change', ()=>toggle(it.id, cb.checked));
+        const txt = document.createElement('span'); txt.textContent = ' ' + it.text;
+        const rm = document.createElement('button'); rm.textContent='Remove';
+        rm.addEventListener('click', ()=>removeItem(it.id));
+        if (it.done) txt.style.textDecoration='line-through';
+        li.appendChild(cb); li.appendChild(txt); li.appendChild(rm);
+        ul.appendChild(li);
+      });
+    }
+    async function add(){
+      const v = document.getElementById('newItem').value.trim();
+      if(!v) return;
+      await fetch('/api/todo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',text:v})});
+      document.getElementById('newItem').value='';
+      load();
+    }
+    async function toggle(id, done){
+      await fetch('/api/todo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'toggle',id,done})});
+      load();
+    }
+    async function removeItem(id){
+      await fetch('/api/todo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',id})});
+      load();
+    }
+    document.getElementById('addBtn').addEventListener('click', add);
+    load();
+  </script>
+</body>
+</html>
