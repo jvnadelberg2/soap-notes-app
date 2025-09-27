@@ -22,7 +22,8 @@ async function generateSOAP() {
     weight: document.getElementById("weight")?.value || "",
     labs: document.getElementById("labs")?.value || "",
     medications: document.getElementById("medications")?.value || "",
-    model: document.getElementById("llmModel")?.value || ""
+    model: document.getElementById("llmModel")?.value || "",
+      provider: document.getElementById("provider")?.value || "" 
   };
 
   try {
@@ -35,11 +36,12 @@ async function generateSOAP() {
     const data = await res.json();
     console.log("Generated SOAP JSON:", data);
 
+    window.currentNoteType = "soap";
     if (data) {
       if (data.id) window.currentNoteId = data.id;
 
       document.getElementById("generatedNote").value =
-        data.text || data.generatedNote || data.noteText || "No note returned";
+        data.generatedNote || data.text || data.noteText || data.note || "No note returned";
 
       if (data.icdSuggestions) {
         const icdBox = document.getElementById("icd-box");
@@ -66,11 +68,14 @@ async function generateBIRP() {
     birpResponse: document.getElementById("birpResponse")?.value || "",
     birpPlan: document.getElementById("birpPlan")?.value || "",
     assistLevel: Number(document.getElementById("assistLevel")?.value || 0),
-    model: document.getElementById("llmModel")?.value || ""
+    model: document.getElementById("llmModel")?.value || "",
+     provider: document.getElementById("provider")?.value || "" 
+
+
   };
 
   try {
-    const res = await fetch("/api/birp", {
+    const res = await fetch("/api/birp-enhance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -79,11 +84,12 @@ async function generateBIRP() {
     const data = await res.json();
     console.log("Generated BIRP JSON:", data);
 
+    window.currentNoteType = "birp";
     if (data) {
       if (data.id) window.currentNoteId = data.id;
 
       document.getElementById("generatedNote").value =
-        data.text || data.note || "No note returned";
+        data.generatedNote || data.text || data.note || "No note returned";
     } else {
       document.getElementById("generatedNote").value =
         "Error: BIRP generation returned no data";
@@ -93,7 +99,7 @@ async function generateBIRP() {
   }
 }
 
-/* ------------------ Generate Button (SOAP or BIRP) ------------------ */
+/* ------------------ Generate Button ------------------ */
 document.getElementById("generateNote")?.addEventListener("click", (e) => {
   e.preventDefault();
   const noteType = document.getElementById("noteType")?.value;
@@ -113,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function lockUI() {
     document.querySelectorAll("input, textarea, select, button").forEach(el => {
       if (el.id !== "clearPatient" && el.id !== "exportPdf") {
-        el.disabled = true; // lock everything else
+        el.disabled = true;
       }
     });
   }
@@ -128,53 +134,67 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function handleSign() {
-    if (isSigned) return;
+  if (isSigned) return;
 
-    const provider = document.getElementById("provider").value.trim();
-    const noteText = document.getElementById("generatedNote").value.trim();
-    const id = window.currentNoteId || "";
+  const provider = document.getElementById("provider").value.trim();
+  const noteText = document.getElementById("generatedNote").value.trim();
+  const id = window.currentNoteId || "";
 
-    if (!provider || !noteText || !id) {
-      alert("Missing provider, note text, or note ID — cannot sign.");
-      return;
-    }
-
-    try {
-      const resp = await fetch("/api/sign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          noteText,
-          provider,
-          providerId: document.getElementById("npi").value || "",
-          specialty: document.getElementById("specialty").value || "",
-          assistLevel: document.getElementById("assistLevel").value,
-          patientId: document.getElementById("mrn").value || ""
-        })
-      });
-      const data = await resp.json();
-
-      if (data.ok) {
-        signBtn.textContent = "Signed";
-        signBtn.style.backgroundColor = "pink";
-        signBtn.disabled = true;
-        isSigned = true;
-        lockUI();
-        document.getElementById("signatureId").value = data.signatureId || "";
-        document.getElementById("signedAt").value = data.signedAt || "";
-        alert("Note signed successfully.");
-      } else {
-        alert("Signing failed: " + (data.error || "unknown error"));
-      }
-    } catch (err) {
-      console.error("Sign error:", err);
-      alert("Error signing note: " + err.message);
-    }
+  if (!provider || !noteText || !id) {
+    alert("Missing provider, note text, or note ID — cannot sign.");
+    return;
   }
 
+  try {
+    const resp = await fetch("/api/sign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id,
+        noteText,
+        provider,
+        providerId: document.getElementById("npi").value || "",
+        specialty: document.getElementById("specialty").value || "",
+        assistLevel: document.getElementById("assistLevel").value,
+        patientId: document.getElementById("mrn").value || "",
+        model: document.getElementById("llmModel")?.value || "",
+        noteType: window.currentNoteType || ""
+      })
+    });
+    const data = await resp.json();
+
+    // 👇 Debug: capture full response
+    window.lastSignData = data;
+    console.log("[sign] full response:", data);
+
+    if (data.ok) {
+      signBtn.textContent = "Signed";
+      signBtn.style.backgroundColor = "pink";
+      signBtn.disabled = true;
+      isSigned = true;
+      lockUI();
+
+      // ✅ populate hidden fields
+      document.getElementById("signatureId").value = data.signatureId || "";
+      document.getElementById("signedAt").value = data.signedAt || "";
+
+      console.log("Note signed:", {
+        id: data.id,
+        noteType: window.currentNoteType,
+        signatureId: data.signatureId,
+        signedAt: data.signedAt
+      });
+
+      alert("Note signed successfully.");
+    } else {
+      alert("Signing failed: " + (data.error || "unknown error"));
+    }
+  } catch (err) {
+    console.error("Sign error:", err);
+    alert("Error signing note: " + err.message);
+  }
+}
   function clearPatientData() {
-    // IDs to keep (clinician + session settings)
     const keep = [
       "provider",
       "credentials",
@@ -186,7 +206,6 @@ document.addEventListener("DOMContentLoaded", () => {
       "noteType"
     ];
 
-    // Clear all inputs, textareas, and selects except kept fields
     document.querySelectorAll("input, textarea, select").forEach(el => {
       if (!keep.includes(el.id)) {
         if (el.tagName === "SELECT") {
@@ -199,31 +218,83 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // Reset ICD suggestions and generated note
     const icdBox = document.getElementById("icd-box");
     if (icdBox) icdBox.textContent = "";
 
     const genNote = document.getElementById("generatedNote");
     if (genNote) genNote.value = "";
 
-    // Reset globals
     window.currentNoteId = null;
 
-    // Reset signature metadata
     const sigId = document.getElementById("signatureId");
     const sigAt = document.getElementById("signedAt");
     if (sigId) sigId.value = "";
     if (sigAt) sigAt.value = "";
   }
 
-  if (signBtn) {
-    signBtn.addEventListener("click", handleSign);
-  }
+  if (signBtn) signBtn.addEventListener("click", handleSign);
+  if (clearBtn) clearBtn.addEventListener("click", () => {
+    clearPatientData();
+    unlockUI();
+  });
+});
 
-  if (clearBtn) {
-    clearBtn.addEventListener("click", () => {
-      clearPatientData();
-      unlockUI();
+/* ------------------ Export PDF (SOAP + BIRP) ------------------ */
+document.getElementById("exportPdf")?.addEventListener("click", async (e) => {
+  e.preventDefault();
+
+  const noteType = window.currentNoteType || "soap";
+
+  try {
+    let endpoint = "/export/pdf";
+    const payload = {
+      generatedNote: document.getElementById("generatedNote")?.value || "",
+      patient: document.getElementById("patient")?.value || "",
+      dob: document.getElementById("dob")?.value || "",
+      sex: document.getElementById("sex")?.value || "",
+      mrn: document.getElementById("mrn")?.value || "",
+      provider: document.getElementById("provider")?.value || "",
+      credentials: document.getElementById("credentials")?.value || "",
+      npi: document.getElementById("npi")?.value || "",
+      clinic: document.getElementById("clinic")?.value || "",
+      providerLocation: document.getElementById("providerLocation")?.value || "",
+      specialty: document.getElementById("specialty")?.value || "",
+      signatureId: document.getElementById("signatureId")?.value || "",
+      signedAt: document.getElementById("signedAt")?.value || "",
+      date: new Date().toLocaleString(),
+    };
+
+    if (noteType === "birp") {
+      endpoint = "/export/pdf/birp";
+      payload.behavior = document.getElementById("birpBehavior")?.value || "";
+      payload.intervention = document.getElementById("birpIntervention")?.value || "";
+      payload.response = document.getElementById("birpResponse")?.value || "";
+      payload.plan = document.getElementById("birpPlan")?.value || "";
+      payload.telePlatform = document.getElementById("telePlatform")?.value || "";
+      payload.teleModality = document.getElementById("teleModality")?.value || "";
+      payload.telePatientLocation = document.getElementById("telePatientLocation")?.value || "";
+      payload.teleConsentAt = document.getElementById("teleConsentAt")?.value || "";
+      payload.teleConsent = document.getElementById("teleConsent")?.checked || false;
+    }
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
+    if (!res.ok) throw new Error("Failed to export PDF");
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+  } catch (err) {
+    console.error("[export] Error exporting PDF:", err);
+    alert("Failed to export PDF. Check console for details.");
   }
-}); // <-- closes document.addEventListener("DOMContentLoaded", ...)
+});
+
+// Helper: check current note type quickly from console
+window.showNoteType = function () {
+  console.log("currentNoteType:", window.currentNoteType);
+};

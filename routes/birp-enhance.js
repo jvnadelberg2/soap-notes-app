@@ -1,5 +1,6 @@
 'use strict';
 
+const { v4: uuidv4 } = require('uuid'); 
 const express = require('express');
 const router = express.Router();
 const { callModel } = require('../services/model-utils');
@@ -58,15 +59,20 @@ router.post('/api/birp-enhance', async (req, res) => {
     const level = Number(assistLevel) || 0;
     console.log("[/api/birp-enhance] Assist level:", level);
 
-    // Level 0 → just stitch together
+    // Level 0 → just stitch together, no model call
     if (level === 0) {
+      const final = shapedBIRPText({
+        behavior: birpBehavior,
+        intervention: birpIntervention,
+        response: birpResponse,
+        plan: birpPlan
+      });
       return res.json({
-        generatedNote: shapedBIRPText({
-          behavior: birpBehavior,
-          intervention: birpIntervention,
-          response: birpResponse,
-          plan: birpPlan
-        })
+        ok: true,
+        id: uuidv4(),
+        generatedNote: final,
+        noteText: final,
+        note: final
       });
     }
 
@@ -106,7 +112,13 @@ Plan: ${birpPlan}
       plan: parsed.plan || birpPlan
     });
 
-    res.json({ generatedNote: final });
+    res.json({
+      ok: true,
+      id: uuidv4(),
+      generatedNote: final,
+      noteText: final,
+      note: final
+    });
   } catch (err) {
     console.error("[/api/birp-enhance] Error:", err);
     res.status(500).json({ error: err.message });

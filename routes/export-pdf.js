@@ -9,12 +9,8 @@ const { PDFDocument, rgb } = require("pdf-lib");
 const router = express.Router();
 
 /* ---------------- Fonts ---------------- */
-const fontBytes = fs.readFileSync(
-  path.join(__dirname, "../fonts/NotoSans-Regular.ttf")
-);
-const fontBoldBytes = fs.readFileSync(
-  path.join(__dirname, "../fonts/NotoSans-Bold.ttf")
-);
+const fontBytes = fs.readFileSync(path.join(__dirname, "../fonts/NotoSans-Regular.ttf"));
+const fontBoldBytes = fs.readFileSync(path.join(__dirname, "../fonts/NotoSans-Bold.ttf"));
 
 /* ---------------- Utilities ---------------- */
 function drawWrappedText(page, text, options) {
@@ -37,9 +33,7 @@ function drawWrappedText(page, text, options) {
   function drawLine(lineText) {
     if (!lineText) return;
     const w = font.widthOfTextAtSize(lineText, fontSize);
-    const xPos =
-      align === "center" ? x + Math.max(0, (maxWidth - w) / 2) : x;
-
+    const xPos = align === "center" ? x + Math.max(0, (maxWidth - w) / 2) : x;
     page.drawText(lineText, { x: xPos, y: cursorY, size: fontSize, font });
     cursorY -= lineHeight;
   }
@@ -72,13 +66,10 @@ function drawCenteredWatermark(page, text, opts) {
 
   const { width: pw, height: ph } = page.getSize();
   const angle = (angleDeg * Math.PI) / 180;
-
   const tw = font.widthOfTextAtSize(text, fontSize);
   const th = font.heightAtSize(fontSize);
-
   const rotW = Math.abs(tw * Math.cos(angle)) + Math.abs(th * Math.sin(angle));
   const rotH = Math.abs(tw * Math.sin(angle)) + Math.abs(th * Math.cos(angle));
-
   const x = (pw - rotW) / 2 + nudgeX;
   const y = (ph - rotH) / 2 + nudgeY;
 
@@ -109,67 +100,49 @@ async function buildPdf(body) {
   let y = height - margin - 80;
   const pages = [page];
 
+  const isSigned = Boolean(body.signatureId && body.signedAt && body.provider);
+
   function addHeaderFooter(p, pageNum, totalPages) {
     // === HEADER ===
-    const headerLineY = height - margin - 40; // moved the line DOWN to increase space above it
-    p.drawLine({
-      start: { x: margin, y: headerLineY },
-      end: { x: width - margin, y: headerLineY },
-      thickness: 1,
-      color: rgb(0, 0, 0),
-    });
+    const headerLineY = height - margin - 40;
 
     // Title
-    p.drawText("Clinical Note", {
-      x: width / 2 - notoSansBold.widthOfTextAtSize("Clinical Note", 16) / 2,
+    const title = "Clinical Note (SOAP)";
+    p.drawText(title, {
+      x: width / 2 - notoSansBold.widthOfTextAtSize(title, 16) / 2,
       y: height - margin + 10,
       size: 16,
       font: notoSansBold,
     });
 
-    // Header text rows — now farther from the line (away from it)
-    const row1Y = headerLineY + 28; // 28px above the line
-    const row2Y = headerLineY + 14; // 14px above the line
+    // Lines above the header rule
+    const row1Y = headerLineY + 28; // patient/demo
+    const row2Y = headerLineY + 14; // provider line
 
-    // Patient row (left) + Date (right)
+    // Patient + demographics (left)
     p.drawText(`Patient: ${body.patient || ""}`, {
       x: margin,
       y: row1Y,
       size: 10,
       font: notoSans,
     });
-    const demo = `DOB: ${body.dob || ""}   Sex: ${body.sex || ""}   MRN: ${
-      body.mrn || ""
-    }`;
+    const demo = `DOB: ${body.dob || ""}   Sex: ${body.sex || ""}   MRN: ${body.mrn || ""}`;
     p.drawText(demo, { x: margin + 200, y: row1Y, size: 10, font: notoSans });
 
-    const dateStr = body.date || new Date().toLocaleDateString();
-    const dateWidth = notoSans.widthOfTextAtSize(dateStr, 10);
-    p.drawText(dateStr, {
-      x: width - margin - dateWidth,
-      y: row2Y,
-      size: 10,
-      font: notoSans,
-    });
+    // Provider + creds (no "Credentials:" label) + NPI + Specialty
+    let providerLine = `Provider: ${body.provider || ""}`;
+    if (body.credentials) providerLine += `, ${body.credentials}`;
+    if (body.npi) providerLine += `   NPI: ${body.npi}`;
+    if (body.specialty) providerLine += `   Specialty: ${body.specialty}`;
+    p.drawText(providerLine, { x: margin, y: row2Y, size: 10, font: notoSans });
 
-    // Provider row with credentials + NPI + specialty (left)
-    const provParts = [];
-    if (body.provider) provParts.push(body.provider);
-    if (body.credentials) provParts.push(body.credentials);
-    const provLine =
-      provParts.length > 1
-        ? `${provParts[0]}, ${provParts.slice(1).join(" ")}`
-        : provParts.join(" ");
-    const npiPart = body.npi ? ` (NPI: ${body.npi})` : "";
-    p.drawText(
-      `Provider: ${provLine || ""}${npiPart}  Specialty: ${body.specialty || ""}`,
-      {
-        x: margin,
-        y: row2Y,
-        size: 10,
-        font: notoSans,
-      }
-    );
+    // Header rule
+    p.drawLine({
+      start: { x: margin, y: headerLineY },
+      end: { x: width - margin, y: headerLineY },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
 
     // === FOOTER ===
     const footerLineY = margin + 70;
@@ -180,19 +153,35 @@ async function buildPdf(body) {
       color: rgb(0, 0, 0),
     });
 
-    // Footer clinic info (left), page (right)
-    p.drawText(`Clinic: ${body.clinic || ""}`, {
-      x: margin,
-      y: footerLineY - 15,
-      size: 9,
-      font: notoSans,
-    });
-    p.drawText(`Location: ${body.providerLocation || ""}`, {
-      x: margin + 200,
-      y: footerLineY - 15,
-      size: 9,
-      font: notoSans,
-    });
+    // Signature block (if signed) ELSE clinic/location (unsigned)
+    if (isSigned) {
+      let sigLine = `Electronically signed by ${body.provider || "Provider"}`;
+      if (body.credentials) sigLine += `, ${body.credentials}`;
+      if (body.npi) sigLine += ` (NPI: ${body.npi})`;
+
+      p.drawText(sigLine, { x: margin, y: footerLineY - 15, size: 9, font: notoSans });
+      p.drawText(new Date(body.signedAt).toLocaleString(), {
+        x: margin,
+        y: footerLineY - 28,
+        size: 9,
+        font: notoSans,
+      });
+    } else {
+      p.drawText(`Clinic: ${body.clinic || ""}`, {
+        x: margin,
+        y: footerLineY - 15,
+        size: 9,
+        font: notoSans,
+      });
+      p.drawText(`Location: ${body.providerLocation || ""}`, {
+        x: margin + 200,
+        y: footerLineY - 15,
+        size: 9,
+        font: notoSans,
+      });
+    }
+
+    // Page number (right)
     p.drawText(`Page ${pageNum} of ${totalPages}`, {
       x: width - margin - 100,
       y: footerLineY - 15,
@@ -200,15 +189,10 @@ async function buildPdf(body) {
       font: notoSans,
     });
 
-    // Centered disclaimers
+    // Centered disclaimers (do not overlap "Printed")
     const maxW = width - 2 * margin;
-    const hipaa =
-      "Confidentiality Notice: This document contains protected health information (PHI) under HIPAA (45 CFR §164). Unauthorized use or disclosure is strictly prohibited.";
-    const disclaimer =
-      "Medical Disclaimer: This clinical note is intended for documentation of patient care. It is not a substitute for professional medical advice, diagnosis, or treatment.";
-
-    let dY = footerLineY - 32;
-    dY = drawWrappedText(p, hipaa, {
+    let dY = footerLineY - 45; // start a bit lower to leave room for signature/clinic row
+    dY = drawWrappedText(p, "Confidentiality Notice: This document contains protected health information (PHI) under HIPAA (45 CFR §164). Unauthorized use or disclosure is strictly prohibited.", {
       x: margin,
       y: dY,
       font: notoSans,
@@ -217,7 +201,7 @@ async function buildPdf(body) {
       lineHeight: 9,
       align: "center",
     });
-    dY = drawWrappedText(p, disclaimer, {
+    drawWrappedText(p, "Medical Disclaimer: This clinical note is intended for documentation of patient care. It is not a substitute for professional medical advice, diagnosis, or treatment.", {
       x: margin,
       y: dY,
       font: notoSans,
@@ -227,10 +211,10 @@ async function buildPdf(body) {
       align: "center",
     });
 
-    // Printed timestamp (left, tiny)
+    // Printed timestamp (bottom-left, below disclaimers)
     p.drawText(`Printed: ${new Date().toLocaleString()}`, {
       x: margin,
-      y: margin + 10,
+      y: margin - 3,
       size: 7,
       font: notoSans,
     });
@@ -247,12 +231,7 @@ async function buildPdf(body) {
   function drawSection(label, content) {
     if (!content || (typeof content === "string" && !content.trim())) return;
     ensureSpace();
-    page.drawText(label.toUpperCase(), {
-      x: margin,
-      y,
-      size: 12,
-      font: notoSansBold,
-    });
+    page.drawText(label.toUpperCase(), { x: margin, y, size: 12, font: notoSansBold });
     y -= lineHeight;
 
     if (typeof content === "object") {
@@ -281,7 +260,7 @@ async function buildPdf(body) {
     y -= lineHeight;
   }
 
-  // ---------------- TELEHEALTH FIRST ----------------
+  // TELEHEALTH (if present)
   const tele = [
     ["Platform", body.telePlatform],
     ["Consent", body.teleConsent ? "Yes" : ""],
@@ -307,21 +286,16 @@ async function buildPdf(body) {
     y -= lineHeight;
   }
 
-  // ---------------- SOAP BODY ----------------
+  // SOAP body
   drawSection("Subjective", body.subjective);
   drawSection("Objective", body.objective);
   drawSection("Assessment", body.assessment);
   drawSection("Plan", body.plan);
 
-  // ---------------- ICD Codes ----------------
+  // ICD Codes
   if (Array.isArray(body.icd_codes) && body.icd_codes.length) {
     ensureSpace();
-    page.drawText("ICD-10 CODES", {
-      x: margin,
-      y,
-      size: 12,
-      font: notoSansBold,
-    });
+    page.drawText("ICD-10 CODES", { x: margin, y, size: 12, font: notoSansBold });
     y -= lineHeight;
     for (const code of body.icd_codes) {
       y = drawWrappedText(page, "• " + code, {
@@ -336,45 +310,8 @@ async function buildPdf(body) {
     y -= lineHeight;
   }
 
-  // ---------------- Draft Watermark ----------------
-  // ---------------- Draft Watermark / Signature ----------------
-  const isSigned = Boolean(body.signatureId && body.signedAt && body.provider);
-
-  if (isSigned) {
-    // ✅ Footer signature line
-    drawWrappedText(page, `Signed by: ${body.provider}, at ${new Date(body.signedAt).toLocaleString()}`, {
-      x: 50,
-      y: 40,
-      fontSize: 10,
-      font: notoSans,
-    });
-
-    // ✅ Signature block
-    const provParts = [];
-    if (body.provider) provParts.push(body.provider);
-    if (body.credentials) provParts.push(body.credentials);
-    const provLine =
-      provParts.length > 1
-        ? `${provParts[0]}, ${provParts.slice(1).join(" ")}`
-        : provParts.join(" ");
-    const npiPart = body.npi ? ` (NPI: ${body.npi})` : "";
-
-    page.drawText(`Electronically signed by ${provLine || "Provider"}${npiPart}`, {
-      x: margin,
-      y,
-      size: 10,
-      font: notoSans,
-    });
-
-    y -= lineHeight;
-    page.drawText(`${body.date || new Date().toLocaleString()}`, {
-      x: margin,
-      y,
-      size: 10,
-      font: notoSans,
-    });
-  } else {
-    // ✅ DRAFT watermark across page
+  // Watermark only if unsigned
+  if (!isSigned) {
     drawCenteredWatermark(page, "DRAFT", {
       font: notoSansBold,
       fontSize: 100,
@@ -384,11 +321,11 @@ async function buildPdf(body) {
     });
   }
 
-  // Add headers/footers
+  // Headers & Footers (incl. signature/printed line)
   pages.forEach((p, i) => addHeaderFooter(p, i + 1, pages.length));
 
   return pdfDoc.save();
-} // ✅ closes buildPdf
+}
 
 /* ---------------- Route ---------------- */
 router.post("/export/pdf", async (req, res) => {

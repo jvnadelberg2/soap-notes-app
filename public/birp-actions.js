@@ -1,4 +1,4 @@
-"use strict";
+/*"use strict";
 
 async function generateBIRP() {
   const body = {
@@ -34,3 +34,6 @@ document.getElementById("generateNote")?.addEventListener("click", (e) => {
     generateBIRP();
   }
 });
+
+
+*/

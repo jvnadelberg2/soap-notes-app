@@ -13,7 +13,14 @@ const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434/api/generat
 console.log('[ai] services/ai.js (Ollama JSON) loaded; OLLAMA_URL=', OLLAMA_URL);
 
 /* ---------- Prompt Builder ---------- */
-function buildJSONPrompt({ subjective = '', objective = '', specialty = '', assistLevel = 1, noteType = 'SOAP' }) {
+function buildJSONPrompt({
+  subjective = '',
+  objective = '',
+  specialty = '',
+  assistLevel = 1,
+  noteType = 'SOAP',
+  provider = ''
+}) {
   const detail =
     assistLevel >= 3 ? 'Write an expanded, clinically useful Assessment and Plan with rationale and specific next steps.' :
     assistLevel === 2 ? 'Write a concise, specific Assessment and Plan (diagnostics, therapeutics, safety, follow-up).' :
@@ -21,13 +28,16 @@ function buildJSONPrompt({ subjective = '', objective = '', specialty = '', assi
 
   return [
     `You are a clinician drafting a ${noteType} note.` + (specialty ? ` Specialty: ${specialty}.` : ''),
+    provider ? `The clinician is ${provider}. Always refer to them by full name (“${provider}”), never as “Dr. [Last Name]”.` : '',
     'Return ONLY a JSON object with these exact keys:',
     '{"subjective": string, "objective": string, "assessment": string, "plan": string}',
     'Rules:',
     '- Return ONLY the JSON object. No preamble. No code fences.',
-    '- If inputs are sparse, STILL write a conservative, clinically safe assessment and plan (do not leave empty).',
     '- Do NOT fabricate demographics or exam findings.',
     '- Use professional medical prose.',
+    '- Never refer to yourself (the AI, assistant, or scribe).',
+    '- Never insert placeholders like [Last Name].',
+    '- If inputs are sparse, STILL write a conservative, clinically safe assessment and plan (do not leave empty).',
     '',
     'Provided subjective:',
     subjective || '(none)',
@@ -36,7 +46,7 @@ function buildJSONPrompt({ subjective = '', objective = '', specialty = '', assi
     objective || '(none)',
     '',
     detail
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 /* ---------- JSON Helpers ---------- */
@@ -121,8 +131,7 @@ async function generate({
               "model:", model,
               "noteType:", noteType);
 
-  const prompt = buildJSONPrompt({ subjective, objective, specialty, assistLevel, noteType });
-  const raw = await callOllama({ model, prompt });
+const prompt = buildJSONPrompt({ subjective, objective, specialty, assistLevel, noteType, provider: body.provider || '' });  const raw = await callOllama({ model, prompt });
 
   let j = tryParseJSON(raw);
   if (!j) {
