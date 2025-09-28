@@ -102,3 +102,4 @@ notes/
 # Logs
 logs/
 *.log
+data/icd10cm-*
