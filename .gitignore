@@ -11,3 +11,6 @@ keys/
 notes/*.pdf
 *.bak
 *.bak.*
+data/*.xml
+data/*.pdf
+data/*.zip
