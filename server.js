@@ -1,6 +1,5 @@
 'use strict';
-
-const { icdKeywordsRouter } = require("./icd-keywords");
+require("dotenv").config();
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
@@ -8,24 +7,30 @@ const net = require('net');
 const { v4: uuidv4 } = require('uuid');
 
 const { callModel } = require('./services/model-utils');
-
 const { checkSigningKeys } = require('./services/key-health');
 const { metricsMiddleware, metricsHandler } = require('./observability/metrics');
 const store = require('./services/store');
 const { renderNotePDF } = require('./services/pdf');
 
 const notesApi = require('./routes/notes-api');
+
+const app = express();
+
+const { setupGoogleAuth } = require("./auth/google");
+
+// attach Google OAuth
+setupGoogleAuth(app);
+
 const exportPdf = require('./routes/export-pdf');
 const icdRouter = require('./routes/icd-api');
 
-const app = express();
 const SK = checkSigningKeys();
 
-/* -------------------- App & Config -------------------- */
 
+
+/* -------------------- App & Config -------------------- */
 app.use(metricsMiddleware());
 app.use(express.json({ limit: '1mb' }));
-app.use("/api/icd", icdKeywordsRouter());
 app.use(express.urlencoded({ extended: false }));
 
 const PORT = Number(process.env.PORT) || 5050;
@@ -47,6 +52,16 @@ app.use(generateNote);
 const publicDir = path.join(process.cwd(), 'public');
 app.use(express.static(publicDir));
 
+
+// Expose session idle timeout from env
+app.get("/session-config.js", (req, res) => {
+  const idle = Number(process.env.SESSION_IDLE_MINUTES || 30);
+  res.type("application/javascript");
+  res.send(`window.__SESSION_IDLE_MINUTES__ = ${idle};`);
+});
+
+
+
 app.use('/api', notesApi);
 app.use('/', exportPdf);
 app.use('/api/icd', icdRouter);
@@ -62,6 +77,9 @@ app.get('/health', (_req, res) => {
   const indexExists = fs.existsSync(path.join(publicDir, 'index.html'));
   res.json({ ok: true, publicDir, indexExists, modelApi: MODEL_API_URL, modelName: MODEL_NAME });
 });
+
+
+
 
 /* -------------------- Model listing -------------------- */
 

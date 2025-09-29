@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
       };
 
       note.icd_codes = document
-        .getElementById("icdCodes")
+        .getElementById("icd-box")
         .value.split("\n")
         .map((c) => c.trim())
         .filter((c) => c.length > 0);

@@ -138,20 +138,11 @@
       <textarea id="generatedNote" spellcheck="false" style="min-height:350px;white-space:pre-wrap"></textarea>
     </div>
 
-    <div class="section soap-sec" id="sec-icd-codes">
-      <details open>
-        <summary>ICD-10 Codes</summary>
-        <div class="row" style="grid-template-columns:1fr;">
-          <div><label for="icdCodes">Codes only, one per line</label><textarea id="icdCodes"></textarea></div>
-        </div>
-      </details>
-    </div>
-
     <div class="section soap-sec" id="sec-icd-suggest">
-      <h3>Potential ICD-10 Codes</h3>
+      <h3>ICD-10 Codes</h3>
       <div class="row">
         <div><label for="icdSearch">Search ICD-10</label><input id="icdSearch" type="text"/></div>
-        <div><label>&nbsp;</label><button id="searchIcdBtn">Search</button></div>
+    
       </div>
       <div id="icd-box" style="min-height:120px;white-space:pre-wrap; border:1px solid #d0d0d0; border-radius:6px; padding:6px; overflow-y:auto;"></div>
     </div>
@@ -281,6 +272,35 @@ document.addEventListener("DOMContentLoaded", () => {
   updateAssistOptions(); // run once on load
 });
 </script>
+ <script src="/session-config.js"></script>
+<script>
+(function() {
+  // Pull value from server via env injection or hardcode
+  const idleMinutes = window.__SESSION_IDLE_MINUTES__ || 30; 
+  const idleMs = idleMinutes * 60 * 1000; 
+
+  let idleTimer;
+
+  function resetIdleTimer() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      console.log("Idle timeout reached — logging out.");
+      window.location.href = "/logout"; // force server logout + redirect to Google
+    }, idleMs);
+  }
+
+  // Reset timer on activity
+  ["mousemove","keydown","mousedown","touchstart"].forEach(evt => {
+    document.addEventListener(evt, resetIdleTimer, { passive: true });
+  });
+
+  // Start on load
+  resetIdleTimer();
+})();
+</script>
+
+
+
 
 
 </body>
