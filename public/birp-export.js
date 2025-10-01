@@ -93,6 +93,19 @@ function drawWrappedCenteredText(page, text, options) {
 
 /* ---------------- PDF Builder ---------------- */
 async function buildBirpPdf(body) {
+
+
+console.log("[birp-export] incoming body:", Object.keys(body));
+
+const noteText = String(body.generatedNote || body.noteText || body.text || "").trim();
+if (!noteText) {
+  console.warn("[birp-export] No note text provided!");
+}
+
+
+
+
+
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
 

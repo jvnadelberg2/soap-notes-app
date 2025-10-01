@@ -216,17 +216,23 @@ function computeSubjective(body){
   return parts.length ? parts.join('\n') : fiveBlanks();
 }
 
+
+
+
+
+
+
 function computeObjective(body) {
-  const vBP     = s(body.vBP     || body.bp);
-  const vHR     = s(body.vHR     || body.hr);
-  const vRR     = s(body.vRR     || body.rr);
-  const vTemp   = s(body.vTemp   || body.temp);
-  const vWeight = s(body.vWeight || body.weight);
-  const vO2Sat  = s(body.vO2Sat  || body.spo2);
+  const vBP     = s(body.bp);
+  const vHR     = s(body.hr);
+  const vRR     = s(body.rr);
+  const vTemp   = s(body.temp);
+  const vWeight = s(body.weight);
+  const vO2Sat  = s(body.spo2);
   const height  = s(body.height);
   const pain    = s(body.painScore);
-  const diag    = s(body.diagnostics || body.labs);
-  const exam    = s(body.exam || body.physicalExam);
+  const diag    = s(body.labs);
+  const exam    = s(body.physicalExam);
   const meds    = s(body.medications);
 
   const parts = [];
@@ -254,12 +260,29 @@ function computeObjective(body) {
 }
 function hasAnyClinicalInput(body){
   const fields = [
-    body.chiefComplaint, body.hpi, body.pmh, body.fh, body.sh, body.ros,
-    body.vBP, body.vHR, body.vRR, body.vTemp, body.vWeight, body.vO2Sat, body.height, body.painScore,
-    body.diagnostics, body.exam, body.allergies, body.medications
+    body.chiefComplaint,
+    body.hpi,
+    body.pmh,
+    body.psh,
+    body.familyHistory,
+    body.socialHistory,
+    body.ros,
+    body.bp,
+    body.hr,
+    body.rr,
+    body.temp,
+    body.weight,
+    body.spo2,
+    body.height,
+    body.painScore,
+    body.labs,
+    body.physicalExam,
+    body.allergies,
+    body.medications
   ];
   return fields.some(v => s(v));
 }
+
 
 function parseSOAPSections(text){
   const T = (text || '').replace(/\r\n/g, '\n');
@@ -304,6 +327,7 @@ function scrubRefusals(txt){
 
 async function handleSoap(req, res){
   try{
+    const noteId = uuidv4();
     console.log(">>> Incoming /api/soap body:", req.body);
     const lvlRaw = Number.parseInt(req.body?.assistLevel, 10);
     // ✅ allow up to level 5
@@ -317,11 +341,19 @@ async function handleSoap(req, res){
     const obj  = computeObjective(req.body || {});
     const anyInput = hasAnyClinicalInput(req.body || {});
 
+
+console.log("assistLevel:", assistLevel, "anyInput:", anyInput, "subj:", subj, "obj:", obj);
+
+
+
+
+
     if (!useInference) {
       const finalText = shapeSOAP({ subj, obj, assess: fiveBlanks(), plan: fiveBlanks() });
+      console.log("[soap] returning note", noteId, "assistLevel=", assistLevel);
       return res.json({ 
         ok:true, 
-        id: uuidv4(),              // 👈 added UUID
+        id: noteId,              // 👈 added UUID
         text: finalText, 
         noteText: finalText, 
         note: finalText 
@@ -372,6 +404,15 @@ Plan:
                           : 800;
 
       const modelText = await callModel({ system, user, temperature: 0.1, model, maxTokens });
+      
+      
+      console.log("[debug] raw modelText:", modelText);
+      
+      
+      
+      
+      
+      
       const parsed = parseSOAPSections(modelText || '');
       assess = parsed.assessment || modelText || '';
       plan   = parsed.plan || '';
@@ -399,7 +440,7 @@ Plan:
     const finalText = shapeSOAP({ subj, obj, assess, plan });
     return res.json({ 
       ok:true, 
-      id: uuidv4(),                // 👈 added UUID
+      id: noteId,                // 👈 added UUID
       text: finalText, 
       noteText: finalText, 
       note: finalText 
@@ -468,10 +509,16 @@ async function handleBIRP(req, res){
     const userShaped = shapedBIRPText(fields);
 
     if (!useInference) {
-      return res.json({ ok:true,         id: uuidv4(),    text:userShaped, noteText:userShaped, note:userShaped, ...fields });
+      return res.json({ ok:true,         id: noteId,    text:userShaped, noteText:userShaped, note:userShaped, ...fields });
     }
 
-    const system = 'You are a medical scribe assisting a licensed clinician. Produce a DRAFT BIRP note for clinician review. Never refuse or add disclaimers. Use only the details provided; if a section is missing, output exactly five blank lines. Keep style clinical and concise.';
+const base = 'You are a medical scribe drafting notes for a clinician. ' +
+  'Your only job is to shape the provided input into a SOAP note. ' +
+  'You must never refuse, never mention being an AI, never add disclaimers or apologies. ' +
+  'If input is insufficient, output exactly five blank lines for that section. ' +
+  'Always return text in the format: Assessment then Plan.';
+
+
 
     const user =
 `Behavior:

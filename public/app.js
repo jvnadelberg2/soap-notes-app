@@ -193,6 +193,13 @@ async function saveNote(){
 }
 window.saveNote = saveNote;
 
+
+/*
+
+
+
+
+
 // ---- export PDF ----
 
 // helper to submit JSON via classic form POST to a new tab (no blob: URL)
@@ -313,7 +320,7 @@ function wireExportPdf(){
   var b = $('exportPdf');
   if(b) b.addEventListener('click', function(e){ e.preventDefault(); exportPdf() }, {passive:false});
 }
-
+*/
 // ---- generate ----
 async function generateNote(){
   const btn = $('btnGenerate');
@@ -367,16 +374,14 @@ async function finalizeCurrent(){
   }
 }
 
-// ---- wire ----
+// ---- wire ----  
 function wire(){
-  var g = $('btnGenerate'); if(g) g.addEventListener('click', function(e){ e.preventDefault(); generateNote() }, {passive:false});
-  var s = $('btn-save-note'); if(s) s.addEventListener('click', function(e){ e.preventDefault(); saveNote() }, {passive:false});
-  wireExportPdf();
-  var f = $('btn-finalize'); if (f) f.addEventListener('click', function(e){ e.preventDefault(); finalizeCurrent() }, {passive:false});
+  var g = $('btnGenerate'); if(g) g.addEventListener('click', ... );
+  var s = $('btn-save-note'); if(s) s.addEventListener('click', ... );
+  // wireExportPdf();   // disable duplicate PDF wiring
+  var f = $('btn-finalize'); if (f) f.addEventListener('click', ... );
   if (typeof refreshList==='function') refreshList();
 }
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire, { once:true });
-else wire();
 
 // ---- admin destructive button ----
 (function wireDangerDeleteAll(){
@@ -396,4 +401,4 @@ else wire();
   }, { passive:false });
 })();
 
-window.exportPdf = exportPdf;
+// window.exportPdf = exportPdf;
