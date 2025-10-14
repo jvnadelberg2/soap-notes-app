@@ -14,7 +14,7 @@ const fontBoldBytes = fs.readFileSync(path.join(__dirname, "../fonts/NotoSans-Bo
 
 /* ---------------- Helpers ---------------- */
 function ensureSpace(state, linesNeeded = 5) {
-  const minY = state.margin + 100 + linesNeeded * state.lineHeight;
+  const minY = state.margin + 10 + linesNeeded * state.lineHeight;
   if (state.y < minY) {
     state.page = state.pdfDoc.addPage([595, 842]);
     state.pages.push(state.page);
@@ -22,35 +22,63 @@ function ensureSpace(state, linesNeeded = 5) {
   }
 }
 
-function drawWrappedText(state, text, { x, font, fontSize = 11, maxWidth, lineHeight }) {
+function drawWrappedText(state, text, { x, font, fontSize = 11, maxWidth, lineHeight, compact = false }) {
   if (!text) return;
-  const words = String(text).split(/\s+/);
-  let line = "";
+  text = String(text).replace(/\r\n/g, "\n");
 
-  function drawLine(s) {
-    if (!s) return;
-    state.page.drawText(s, { x, y: state.y, size: fontSize, font });
-    state.y -= lineHeight;
-    if (state.y < state.margin + 100) {
-      state.page = state.pdfDoc.addPage([595, 842]);
-      state.pages.push(state.page);
-      state.y = state.page.getHeight() - state.margin - 80;
-    }
-  }
+// Normalize and add smart breaks
+text = String(text).replace(/\r\n/g, "\n");
 
-  for (const w of words) {
-    const test = line ? line + " " + w : w;
-    const width = font.widthOfTextAtSize(test, fontSize);
-    if (width > maxWidth && line) {
-      drawLine(line);
-      line = w;
-    } else {
-      line = test;
-    }
-  }
-  if (line) drawLine(line);
+// Always break coloned statements into visual paragraphs
+text = text.replace(/([^\n]*?:)([^\n]*)/g, "\n\n$1$2");
+
+// If compact (Plan), also add special handling for bullets and coloned headers
+if (compact) {
+  text = text
+    .replace(/([*\-•]\s+)/g, "\n$1")
+    .replace(/:\s*(?=[A-Z0-9])/g, ":\n");
 }
 
+  const paragraphs = text.split(/\n+/);
+
+  for (let para of paragraphs) {
+    para = para.trim();
+    if (!para) {
+      state.y -= lineHeight * 0.5;
+      ensureSpace(state);
+      continue;
+    }
+
+    const words = para.split(/\s+/);
+    let line = "";
+
+    const drawLine = (s) => {
+      if (!s) return;
+      state.page.drawText(s, { x, y: state.y, size: fontSize, font });
+      state.y -= lineHeight;
+      ensureSpace(state);
+    };
+
+    for (const w of words) {
+      const test = line ? line + " " + w : w;
+      const width = font.widthOfTextAtSize(test, fontSize);
+      if (width > maxWidth && line) {
+        drawLine(line);
+        line = w;
+      } else {
+        line = test;
+      }
+    }
+
+    if (line) drawLine(line);
+    if (!compact) {
+      state.y -= lineHeight * 0.5;
+      ensureSpace(state);
+    }
+  }
+}
+
+/* ---------------- Drawing Helpers ---------------- */
 function drawBulletedList(state, items, opts) {
   const { xBullet, xText, font, fontSize, maxWidth, lineHeight, bulletChar } = opts;
   for (let raw of items) {
@@ -120,7 +148,6 @@ async function buildPdf(body) {
 
   const margin = 50;
   const lineHeight = 16;
-
   let page = pdfDoc.addPage([595, 842]);
   const pages = [page];
   let y = page.getHeight() - margin - 80;
@@ -132,7 +159,6 @@ async function buildPdf(body) {
     const { height, width } = p.getSize();
     const headerLineY = height - margin - 40;
 
-    // Title
     const title = "Clinical Note (SOAP)";
     p.drawText(title, {
       x: width / 2 - notoSansBold.widthOfTextAtSize(title, 16) / 2,
@@ -141,13 +167,11 @@ async function buildPdf(body) {
       font: notoSansBold,
     });
 
-    // Patient info
     const row1Y = headerLineY + 28;
     p.drawText(`Patient: ${body.patient || ""}`, { x: margin, y: row1Y, size: 10, font: notoSans });
     const demo = `DOB: ${body.dob || ""}   Sex: ${body.sex || ""}   MRN: ${body.mrn || ""}`;
     p.drawText(demo, { x: margin + 200, y: row1Y, size: 10, font: notoSans });
 
-    // Provider info
     const row2Y = headerLineY + 14;
     let providerLine = `Provider: ${body.provider || ""}`;
     if (body.credentials) providerLine += `, ${body.credentials}`;
@@ -155,7 +179,6 @@ async function buildPdf(body) {
     if (body.specialty) providerLine += `   Specialty: ${body.specialty}`;
     p.drawText(providerLine, { x: margin, y: row2Y, size: 10, font: notoSans });
 
-    // Header rule
     p.drawLine({
       start: { x: margin, y: headerLineY },
       end: { x: width - margin, y: headerLineY },
@@ -163,7 +186,6 @@ async function buildPdf(body) {
       color: rgb(0, 0, 0),
     });
 
-    // Footer rule
     const footerLineY = margin + 70;
     p.drawLine({
       start: { x: margin, y: footerLineY },
@@ -190,7 +212,6 @@ async function buildPdf(body) {
       font: notoSans,
     });
 
-    // Disclaimers
     const maxW = width - 2 * margin;
     let dY = footerLineY - 45;
     dY = drawWrappedCenteredFooterText(p,
@@ -241,44 +262,47 @@ async function buildPdf(body) {
     }
   }
 
-  /* ---- Body ---- */
+  // --- Extract Assessment and Plan safely from generatedNote if provided ---
+  const fullText = String(body.generatedNote || "").replace(/\r\n/g, "\n");
+  const rxAssess = /\*\*ASSESSMENT\*\*([\s\S]*?)(?=\*\*PLAN\*\*|\[\[END\]\])/i;
+  const rxPlan = /\*\*PLAN\*\*([\s\S]*?)(?=\[\[END\]\])/i;
+  const assessment = (body.assessment || fullText.match(rxAssess)?.[1] || "").trim();
+  const plan = (body.plan || fullText.match(rxPlan)?.[1] || "").trim();
+
   drawSection("Subjective", body.subjective);
   drawSection("Objective", body.objective);
-  drawSection("Assessment", body.assessment);
+  drawSection("Assessment", assessment);
 
-  // PLAN with bullets
-  if (body.plan && String(body.plan).trim()) {
+  if (plan) {
     drawSectionHeader("Plan");
-    const lines = String(body.plan).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-    const bulletLike = /^([*\-•]\s+|\d+[\.)]\s+)/;
-    if (lines.length && !bulletLike.test(lines[0])) {
-      drawSectionParagraph(lines.shift());
-    }
-    const bullets = lines.filter(l => bulletLike.test(l));
-    const nonBullets = lines.filter(l => !bulletLike.test(l));
-    if (bullets.length) {
-      drawBulletedList(state, bullets, {
-        xBullet: margin + 22,
-        xText: margin + 36,
-        font: notoSans,
-        fontSize: 11,
-        maxWidth: state.page.getWidth() - (margin + 36) - margin,
-        lineHeight,
-        bulletChar: "•",
-      });
-      state.y -= lineHeight;
-    }
-    if (nonBullets.length) {
-      drawSectionParagraph(nonBullets.join(" "));
-    }
+    drawWrappedText(state, plan, {
+      x: margin + 20,
+      font: notoSans,
+      fontSize: 11,
+      maxWidth: state.page.getWidth() - 2 * margin - 20,
+      lineHeight,
+      compact: true,
+    });
   }
 
-  if (Array.isArray(body.icd_codes) && body.icd_codes.length) {
-    drawSectionHeader("ICD-10 Codes");
-    for (const code of body.icd_codes) {
-      drawSectionParagraph("• " + code);
-    }
+// --- ICD-10 Codes ---
+if (Array.isArray(body.icd_codes) && body.icd_codes.length) {
+  drawSectionHeader("ICD-10 Codes");
+
+  for (const code of body.icd_codes) {
+    drawWrappedText(state, "• " + code, {
+      x: margin + 20,
+      font: notoSans,
+      fontSize: 11,
+      maxWidth: state.page.getWidth() - 2 * margin - 20,
+      lineHeight,
+      compact: true  // 👈 keeps single spacing
+    });
   }
+
+  // Small extra visual gap after the ICD list
+  state.y -= lineHeight * 0.5;
+}
 
   if (!isSigned) {
     pages.forEach(p => drawCenteredWatermark(p, "DRAFT", {
@@ -298,7 +322,7 @@ router.post("/export/pdf", async (req, res) => {
     const pdfBytes = await buildPdf(body);
     const filename = `note-${Date.now()}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+    res.setHeader("Content-Disposition", `inline; filename=\"${filename}\"`);
     res.send(Buffer.from(pdfBytes));
   } catch (err) {
     console.error("[export-pdf] Error:", err);

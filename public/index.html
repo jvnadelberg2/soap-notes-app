@@ -63,6 +63,7 @@
       <button id="clearPatient">Clear Patient Data</button>
       <button id="generateNote">Generate Note</button>
       <button id="exportPdf" class="primary">Export PDF</button>
+      <button id="logoutBtn" class="btn btn-outline">Logout</button>
     </div>
   </header>
 
@@ -104,7 +105,24 @@
           <div><label for="familyHistory">Family History</label><textarea id="familyHistory"></textarea></div>
           <div><label for="socialHistory">Social History</label><textarea id="socialHistory"></textarea></div>
           <div><label for="allergies">Allergies</label><textarea id="allergies"></textarea></div>
-          <div style="grid-column:1/-1"><label for="ros">Review of Systems</label><textarea id="ros"></textarea></div>
+          <div style="grid-column:1/-1">
+  <label>Review of Systems</label>
+  <div id="ros" class="row" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px;">
+    <label><input type="checkbox" value="Constitutional"/> Constitutional</label>
+    <label><input type="checkbox" value="HEENT"/> HEENT</label>
+    <label><input type="checkbox" value="Cardiovascular"/> Cardiovascular</label>
+    <label><input type="checkbox" value="Respiratory"/> Respiratory</label>
+    <label><input type="checkbox" value="Gastrointestinal"/> Gastrointestinal</label>
+    <label><input type="checkbox" value="Genitourinary"/> Genitourinary</label>
+    <label><input type="checkbox" value="Musculoskeletal"/> Musculoskeletal</label>
+    <label><input type="checkbox" value="Neurological"/> Neurological</label>
+    <label><input type="checkbox" value="Psychiatric"/> Psychiatric</label>
+    <label><input type="checkbox" value="Skin"/> Skin</label>
+    <label><input type="checkbox" value="Endocrine"/> Endocrine</label>
+    <label><input type="checkbox" value="Hematologic/Lymphatic"/> Heme/Lymph</label>
+    <label><input type="checkbox" value="Allergic/Immunologic"/> Allergy/Immunology</label>
+  </div>
+</div>
         </div>
       </details>
     </div>
@@ -297,5 +315,20 @@ document.addEventListener("DOMContentLoaded", () => {
   resetIdleTimer();
 })();
 </script>
+
+<script>
+  // When user returns to this page using Back/Forward navigation,
+  // force a full reload so auth check runs again
+  window.addEventListener("pageshow", function (event) {
+    if (event.persisted || performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
+      window.location.reload();
+    }
+  });
+</script>
+
+
+
+
+
 </body>
 </html>

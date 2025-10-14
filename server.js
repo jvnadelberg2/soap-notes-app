@@ -1,4 +1,12 @@
 'use strict';
+
+
+const session = require('express-session');
+const passport = require('passport');
+const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
+
+
+
 require("dotenv").config();
 const path = require('path');
 const fs = require('fs');
@@ -16,15 +24,141 @@ const notesApi = require('./routes/notes-api');
 
 const app = express();
 
-const { setupGoogleAuth } = require("./auth/google");
+app.use(session({
+  name: 'sid',
+  secret: process.env.SESSION_SECRET || 'keyboard cat',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: (Number(process.env.SESSION_IDLE_MINUTES || 30) * 60 * 1000), // 30 min default
+    sameSite: 'lax',
+    secure: false
+  }
+}));
 
-// attach Google OAuth
-setupGoogleAuth(app);
+app.use(passport.initialize());
+app.use(passport.session());
+
+// --- Google OAuth routes ---
+
+// --- Prevent cached authenticated pages from being reused (fixes back-button after logout) ---
+// --- Prevent cached authenticated pages (fixes back-button issue) ---
+app.use((req, res, next) => {
+  const wantsHtml = /\btext\/html\b/.test(req.headers.accept || '');
+  if (wantsHtml && req.isAuthenticated && req.isAuthenticated()) {
+    // Standard cache controls
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+
+    // Disable bfcache (Chrome/Safari)
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private, max-age=0, proxy-revalidate, no-transform');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Permissions-Policy', 'browsing-topics=()');
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+    res.setHeader('Vary', 'Cookie');
+  }
+
+  // On logout pages, add even stronger no-store to force reloads
+  if (req.path === '/logout') {
+    res.setHeader('Clear-Site-Data', '"cookies"');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  }
+
+  next();
+});
+
+
+
+
+
+
+
+
+
+
+
+app.get('/auth/google',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    prompt: 'consent select_account',   // 👈 always show Google account chooser
+  })
+);
+
+app.get('/auth/google/callback',
+  passport.authenticate('google', {
+    failureRedirect: '/login-failed',
+    successRedirect: '/',
+  })
+);
+
+// --- Optional helpers for debugging login ---
+app.get('/logout', (req, res, next) => {
+  req.logout(err => {
+    if (err) return next(err);
+
+    if (req.session) {
+      req.session.destroy(() => {
+        res.clearCookie('sid', { path: '/' });
+        res.clearCookie('connect.sid', { path: '/' });
+        // 👇 Add this line here
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        res.setHeader('Clear-Site-Data', '"cookies"');
+        res.redirect('/auth/google');  // back to login
+      });
+    } else {
+      res.clearCookie('sid', { path: '/' });
+      res.clearCookie('connect.sid', { path: '/' });
+      // 👇 Add it here too
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      res.setHeader('Clear-Site-Data', '"cookies"');
+      res.redirect('/auth/google');
+    }
+  });
+});
+
+app.get('/api/me', (req, res) => {
+  if (!req.isAuthenticated || !req.isAuthenticated()) {
+    return res.json({ ok: false, user: null });
+  }
+  res.json({ ok: true, user: req.user });
+});
+
+
+
+app.get('/login-failed', (req, res) => {
+  res.status(401).send('Login failed — please try again.');
+});
+
+
+
+
+
+
+
 
 const exportPdf = require('./routes/export-pdf');
 const icdRouter = require('./routes/icd-api');
 
 const SK = checkSigningKeys();
+
+
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: process.env.GOOGLE_CALLBACK_URL
+}, (accessToken, refreshToken, profile, done) => {
+  return done(null, profile);
+}));
+
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((obj, done) => done(null, obj));
+
+
+
+
+
 
 
 
@@ -50,6 +184,41 @@ const generateNote = require('./routes/generate-note');
 app.use(generateNote);
 
 const publicDir = path.join(process.cwd(), 'public');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+app.use((req, res, next) => {
+  // Skip auth for these paths
+  const openPaths = [
+    '/auth/google',
+    '/auth/google/callback',
+    '/login-failed',
+    '/health',
+    '/admin/metrics'
+  ];
+  if (openPaths.some(p => req.path.startsWith(p))) {
+    return next();
+  }
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    return next();
+  }
+  res.redirect('/auth/google');
+});
+
 app.use(express.static(publicDir));
 
 
@@ -60,12 +229,16 @@ app.get("/session-config.js", (req, res) => {
   res.send(`window.__SESSION_IDLE_MINUTES__ = ${idle};`);
 });
 
-
-
 app.use('/api', notesApi);
 app.use('/', exportPdf);
 app.use('/api/icd', icdRouter);
 app.use('/', require('./routes/birp-export-pdf'));
+
+
+
+
+
+
 
 /* -------------------- Meta / Health -------------------- */
 
@@ -406,7 +579,6 @@ Plan:
       const modelText = await callModel({ system, user, temperature: 0.1, model, maxTokens });
       
       
-      console.log("[debug] raw modelText:", modelText);
       
       
       

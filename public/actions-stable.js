@@ -268,24 +268,36 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/* ------------------ Unified Export PDF (SOAP + BIRP) ------------------ */
+/* ------------------ Note Formatting Utility ------------------ */
+function formatNoteText(raw) {
+  const lines = raw.split("\n");
+  const formatted = lines.map(line => {
+    const trimmed = line.trim();
 
-// helper: preprocess note before regex
+    // Match only exact section headers (with optional colon)
+    if (/^Subjective[:]?$/i.test(trimmed)) return "**SUBJECTIVE**";
+    if (/^Objective[:]?$/i.test(trimmed)) return "**OBJECTIVE**";
+    if (/^Assessment[:]?$/i.test(trimmed)) return "**ASSESSMENT**";
+    if (/^Plan[:]?$/i.test(trimmed)) return "**PLAN**";
+
+    // Leave all other lines intact
+    return line;
+  });
+
+  return formatted.join("\n");
+}
+
+/* ------------------ Unified Export PDF (SOAP + BIRP) ------------------ */
 function preprocessNoteText(raw) {
   let text = raw;
 
-  // Normalize headers
-  text = text.replace(/\bASSESSMENT\b/gi, "Assessment");
-  text = text.replace(/\bPLAN\b/gi, "Plan");
-
-  // Remove disclaimers/draft sections
-  text = text.replace(/Confidentiality Notice:[\s\S]*?Printed:[^\n]+/gi, "");
-  text = text.replace(/DRAFT[\s\S]*?(?=Assessment|Plan|$)/gi, "");
-
-  // Normalize line endings
+  // normalize endings
   text = text.replace(/\r\n/g, "\n");
 
-  // Add END marker
+  // format headers
+  text = formatNoteText(text);
+
+  // add END marker
   text += "\n[[END]]";
 
   return text;
@@ -368,8 +380,8 @@ document.getElementById("exportPdf")?.addEventListener("click", async (e) => {
       const clean = preprocessNoteText(generated);
       console.log("[exportPdf] preprocessed note:", clean);
 
-      const rxAssess = /\bAssessment\b[\s:]*([\s\S]*?)(?=\bPlan\b)/i;
-      const rxPlan   = /\bPlan\b[\s:]*([\s\S]*?)(?=\[\[END\]\])/i;
+      const rxAssess = /\*\*ASSESSMENT\*\*([\s\S]*?)(?=\*\*PLAN\*\*|\[\[END\]\])/i;
+      const rxPlan   = /\*\*PLAN\*\*([\s\S]*?)(?=\[\[END\]\])/i;
 
       payload.assessment = (clean.match(rxAssess)?.[1] || "").trim();
       payload.plan       = (clean.match(rxPlan)?.[1] || "").trim();
@@ -377,20 +389,31 @@ document.getElementById("exportPdf")?.addEventListener("click", async (e) => {
       console.log("[exportPdf] final assessment:", payload.assessment);
       console.log("[exportPdf] final plan:", payload.plan);
 
-  } else if (noteType === "birp") {
-  endpoint = "/export/pdf/birp";
-  payload.behavior = document.getElementById("birpBehavior")?.value || "";
-  payload.intervention = document.getElementById("birpIntervention")?.value || "";
-  payload.response = document.getElementById("birpResponse")?.value || "";
-  payload.plan = document.getElementById("birpPlan")?.value || "";
-  payload.generatedNote = document.getElementById("generatedNote")?.value || "";
-  payload.telePlatform = document.getElementById("telePlatform")?.value || "";
-  payload.teleModality = document.getElementById("teleModality")?.value || "";
-  payload.telePatientLocation = document.getElementById("telePatientLocation")?.value || "";
-  payload.teleConsentAt = document.getElementById("teleConsentAt")?.value || "";
-  payload.teleConsent = document.getElementById("teleConsent")?.checked || false;
+    } else if (noteType === "birp") {
+      endpoint = "/export/pdf/birp";
+      payload.behavior = document.getElementById("birpBehavior")?.value || "";
+      payload.intervention = document.getElementById("birpIntervention")?.value || "";
+      payload.response = document.getElementById("birpResponse")?.value || "";
+      payload.plan = document.getElementById("birpPlan")?.value || "";
+      payload.generatedNote = document.getElementById("generatedNote")?.value || "";
+      payload.telePlatform = document.getElementById("telePlatform")?.value || "";
+      payload.teleModality = document.getElementById("teleModality")?.value || "";
+      payload.telePatientLocation = document.getElementById("telePatientLocation")?.value || "";
+      payload.teleConsentAt = document.getElementById("teleConsentAt")?.value || "";
+      payload.teleConsent = document.getElementById("teleConsent")?.checked || false;
+    }
+
+
+console.log("--------------------------------------------------------");
+console.log("[pdf-debug] RAW NOTE TEXT (exact characters):");
+const rawText = payload.generatedNote || payload.assessment || payload.plan || "";
+for (let i = 0; i < rawText.length; i++) {
+  console.log(`${i.toString().padStart(4, "0")}: ${JSON.stringify(rawText[i])}`);
 }
-    
+console.log("--------------------------------------------------------");
+
+
+
 
     const res = await fetch(endpoint, {
       method: "POST",
@@ -412,3 +435,14 @@ document.getElementById("exportPdf")?.addEventListener("click", async (e) => {
 window.showNoteType = function () {
   console.log("currentNoteType:", window.currentNoteType);
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      // direct browser navigation — allows redirect to /auth/google
+      window.location.href = '/logout';
+    });
+  }
+});
+

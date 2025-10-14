@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Logging out…</title>
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="robots" content="noindex">
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 2rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Signing out and clearing patient data…</h1>
+    <p>This window will redirect to sign-in shortly.</p>
+    <script>
+      (async function shred() {
+        try {
+          try { localStorage.clear(); } catch(_) {}
+          try { sessionStorage.clear(); } catch(_) {}
+
+          try {
+            if (indexedDB && indexedDB.databases) {
+              const dbs = await indexedDB.databases();
+              for (const db of dbs) {
+                if (db && db.name) {
+                  try { indexedDB.deleteDatabase(db.name); } catch(_) {}
+                }
+              }
+            } else {
+              const guess = ['soap-notes-db','notes','patients','sessions'];
+              for (const n of guess) { try { indexedDB.deleteDatabase(n); } catch(_) {} }
+            }
+          } catch(_) {}
+
+          try {
+            if (window.caches && caches.keys) {
+              const keys = await caches.keys();
+              for (const k of keys) { try { await caches.delete(k); } catch(_) {} }
+            }
+          } catch(_) {}
+
+          try {
+            if (navigator.serviceWorker) {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              for (const r of regs) { try { await r.unregister(); } catch(_) {} }
+            }
+          } catch(_) {}
+        } finally {
+          setTimeout(function () {
+            window.location.replace('/auth/google');
+          }, 300);
+        }
+      })();
+    </script>
+  </body>
+</html>
