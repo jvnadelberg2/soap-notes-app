@@ -373,7 +373,8 @@ function computeSubjective(body){
   const psh       = s(body.psh);
   const fh        = s(body.familyHistory);
   const sh        = s(body.socialHistory);
-  const ros       = s(body.ros);
+  const rosChecks   = Array.isArray(body.ros) ? body.ros.join(", ") : s(body.ros);
+  const rosComments = s(body.rosComments);
   const allergies = s(body.allergies);
 
   const parts = [];
@@ -383,7 +384,8 @@ function computeSubjective(body){
   if (psh) parts.push(`PSH: ${psh}`);
   if (fh)  parts.push(`FH: ${fh}`);
   if (sh)  parts.push(`SH: ${sh}`);
-  if (ros) parts.push(`ROS: ${ros}`);
+  if (rosChecks) parts.push(`Review of Systems: ${rosChecks}`);
+  if (rosComments) parts.push(`ROS Comments: ${rosComments}`);
   if (allergies) parts.push(`Allergies: ${allergies}`);
 
   return parts.length ? parts.join('\n') : fiveBlanks();

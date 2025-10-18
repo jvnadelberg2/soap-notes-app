@@ -121,7 +121,22 @@
     <label><input type="checkbox" value="Endocrine"/> Endocrine</label>
     <label><input type="checkbox" value="Hematologic/Lymphatic"/> Heme/Lymph</label>
     <label><input type="checkbox" value="Allergic/Immunologic"/> Allergy/Immunology</label>
+
+
+
+
+
+
   </div>
+
+<label for="ros-comments"><b>ROS Comments (optional):</b></label>
+  <textarea id="ros-comments" rows="3" placeholder="Add any clarifying notes..."></textarea>
+
+
+
+
+
+
 </div>
         </div>
       </details>
@@ -162,8 +177,12 @@
         <div><label for="icdSearch">Search ICD-10</label><input id="icdSearch" type="text"/></div>
     
       </div>
-      <div id="icd-box" style="min-height:120px;white-space:pre-wrap; border:1px solid #d0d0d0; border-radius:6px; padding:6px; overflow-y:auto;"></div>
-    </div>
+<div id="icd-box"
+  style="min-height:120px;white-space:pre-wrap;
+  border:1px solid #d0d0d0;border-radius:6px;
+  padding:6px;overflow-y:auto;">
+  <span style="color:#777;font-size:12px;">Selected ICD-10 codes will appear here...</span>
+</div>    </div>
 
     <div class="section" id="sec-birp" style="display:none">
       <details open>
@@ -197,9 +216,6 @@
         </div>
         <div class="row"><div><label for="providerLocation">Provider location</label><input id="providerLocation" type="text"/></div></div>
         <div class="hint">Clinician and settings persist across reloads.</div>
-      </div>
-    </div>
-     <div class="hint">Clinician and settings persist across reloads.</div>
   </div>
 </div>
 
