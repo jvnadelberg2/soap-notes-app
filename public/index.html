@@ -60,12 +60,6 @@
           <option value="5">5 — Full A, No Plan</option>
         </select>
       </label>
-
-
-
-
-
-
       <label><input id="redact" type="checkbox"/> Redact</label>
       <button id="clearPatient">Clear Patient Data</button>
       <button id="generateNote">Generate Note</button>
@@ -101,60 +95,50 @@
       </details>
     </div>
 
+    <!-- SOAP SECTION -->
     <div class="section soap-sec" id="sec-histories">
       <details open>
         <summary>Subjective</summary>
         <div class="row">
           <div style="grid-column:1/-1"><label for="chiefComplaint">Chief Complaint</label><textarea id="chiefComplaint"></textarea></div>
           <div style="grid-column:1/-1"><label for="hpi">History of Present Illness (HPI)</label><textarea id="hpi"></textarea></div>
-          
-         <div><label for="allergies">Allergies</label><textarea id="allergies"></textarea></div>
-          
+          <div><label for="allergies">Allergies</label><textarea id="allergies"></textarea></div>
           <div class="section soap-sec" id="sec-meds">
-      <details>
-        <summary>Medications</summary>
-        <div class="row"><div><label for="medications">Medications</label><textarea id="medications"></textarea></div></div>
-      </details>
-    </div>
-          
-          
-          
-          
-          
+            <details>
+              <summary>Medications</summary>
+              <div class="row"><div><label for="medications">Medications</label><textarea id="medications"></textarea></div></div>
+            </details>
+          </div>
           <div><label for="pmh">Past Medical History</label><textarea id="pmh"></textarea></div>
           <div><label for="psh">Past Surgical History</label><textarea id="psh"></textarea></div>
           <div><label for="familyHistory">Family History</label><textarea id="familyHistory"></textarea></div>
           <div><label for="socialHistory">Social History</label><textarea id="socialHistory"></textarea></div>
-      
+
           <div style="grid-column:1/-1">
-  <label>Review of Systems</label>
-  <div id="ros" class="row" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px;">
-    <label><input type="checkbox" value="Constitutional"/> Constitutional</label>
-    <label><input type="checkbox" value="HEENT"/> HEENT</label>
-    <label><input type="checkbox" value="Cardiovascular"/> Cardiovascular</label>
-    <label><input type="checkbox" value="Respiratory"/> Respiratory</label>
-    <label><input type="checkbox" value="Gastrointestinal"/> Gastrointestinal</label>
-    <label><input type="checkbox" value="Genitourinary"/> Genitourinary</label>
-    <label><input type="checkbox" value="Musculoskeletal"/> Musculoskeletal</label>
-    <label><input type="checkbox" value="Neurological"/> Neurological</label>
-    <label><input type="checkbox" value="Psychiatric"/> Psychiatric</label>
-    <label><input type="checkbox" value="Skin"/> Skin</label>
-    <label><input type="checkbox" value="Endocrine"/> Endocrine</label>
-    <label><input type="checkbox" value="Hematologic/Lymphatic"/> Heme/Lymph</label>
-    <label><input type="checkbox" value="Allergic/Immunologic"/> Allergy/Immunology</label>
-  </div>
-</div>
-<div style="grid-column:1/-1; margin-top:10px;">
-  <label for="rosComments"><b>ROS Comments (optional):</b></label>
-  <textarea id="rosComments" name="rosComments" rows="3" style="width:100%; min-height:100px;" placeholder="Add any clarifying notes..."></textarea>
-</div>
-</div> <!-- closes .row -->
-</details> <!-- closes Subjective -->
-</div> <!-- closes Subjective section -->
+            <label>Review of Systems</label>
+            <div id="ros" class="row" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px;">
+              <label><input type="checkbox" value="Constitutional"/> Constitutional</label>
+              <label><input type="checkbox" value="HEENT"/> HEENT</label>
+              <label><input type="checkbox" value="Cardiovascular"/> Cardiovascular</label>
+              <label><input type="checkbox" value="Respiratory"/> Respiratory</label>
+              <label><input type="checkbox" value="Gastrointestinal"/> Gastrointestinal</label>
+              <label><input type="checkbox" value="Genitourinary"/> Genitourinary</label>
+              <label><input type="checkbox" value="Musculoskeletal"/> Musculoskeletal</label>
+              <label><input type="checkbox" value="Neurological"/> Neurological</label>
+              <label><input type="checkbox" value="Psychiatric"/> Psychiatric</label>
+              <label><input type="checkbox" value="Skin"/> Skin</label>
+              <label><input type="checkbox" value="Endocrine"/> Endocrine</label>
+              <label><input type="checkbox" value="Hematologic/Lymphatic"/> Heme/Lymph</label>
+              <label><input type="checkbox" value="Allergic/Immunologic"/> Allergy/Immunology</label>
+            </div>
+          </div>
 
-
-
-
+          <div style="grid-column:1/-1; margin-top:10px;">
+            <label for="rosComments"><b>ROS Comments (optional):</b></label>
+            <textarea id="rosComments" name="rosComments" rows="3" style="width:100%; min-height:100px;" placeholder="Add any clarifying notes..."></textarea>
+          </div>
+        </div>
+      </details>
     </div>
 
     <div class="section soap-sec" id="sec-diagnostics">
@@ -174,64 +158,37 @@
       </details>
     </div>
 
-    
-
-   
-
     <div class="section soap-sec" id="sec-icd-suggest">
       <h3>ICD-10 Codes</h3>
       <div class="row">
         <div><label for="icdSearch">Search ICD-10</label><input id="icdSearch" type="text"/></div>
-    
       </div>
-      <div id="icd-box" style="min-height:120px;white-space:pre-wrap; border:1px solid #d0d0d0; border-radius:6px; padding:6px; overflow-y:auto;"></div>
+      <div id="icd-box" style="min-height:120px;white-space:pre-wrap;border:1px solid #d0d0d0;border-radius:6px;padding:6px;overflow-y:auto;">
+        <span style="color:#777;font-size:12px;">Selected ICD-10 codes will appear here...</span>
+      </div>
     </div>
- <div class="section">
+
+    <div class="section">
       <h3>Generated Note</h3>
       <textarea id="generatedNote" spellcheck="false" style="min-height:350px;white-space:pre-wrap"></textarea>
     </div>
-    <!-- ICU Progress Note Section -->
+
+    <!-- ICU PROGRESS NOTE -->
     <div class="section icu-sec" id="sec-icu" style="display:none">
       <details open>
         <summary>ICU Progress Note</summary>
         <div class="row" style="grid-template-columns:1fr;">
-          <div>
-            <label for="icuInterval">Interval Events</label>
-            <textarea id="icuInterval" placeholder="Describe major overnight events, interventions, or changes in status"></textarea>
-          </div>
-          <div>
-            <label for="icuObjective">Objective Data</label>
-            <textarea id="icuObjective" placeholder="Vitals, ventilator settings, labs, imaging summaries"></textarea>
-          </div>
-          <div>
-            <label for="icuAssessment">Assessment (optional)</label>
-<textarea id="icuAssessment" placeholder="Brief summary of patient condition and response (optional — model will create if left blank)"></textarea>       </div>
-          <div>
-            <label for="icuPlan">Plan by System (optional)</label>
-            <textarea id="icuPlan" placeholder="Add specific plan notes if desired (optional — model can generate full plan)"></textarea>
-          </div>
+          <div><label for="icuInterval">Interval Events</label>
+            <textarea id="icuInterval" placeholder="Describe major overnight events, interventions, or changes in status"></textarea></div>
+          <div><label for="icuObjective">Objective Data</label>
+            <textarea id="icuObjective" placeholder="Vitals, ventilator settings, labs, imaging summaries"></textarea></div>
+          <div><label for="icuAssessment">Assessment (optional — model can generate this section)</label>
+            <textarea id="icuAssessment" placeholder="Brief summary of patient condition and response (optional — model will create if left blank)"></textarea></div>
+          <div><label for="icuPlan">Plan by System (optional)</label>
+            <textarea id="icuPlan" placeholder="Add specific plan notes if desired (optional — model can generate full plan)"></textarea></div>
         </div>
       </details>
     </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     <div class="section" id="sec-birp" style="display:none">
       <details open>
@@ -267,210 +224,33 @@
         <div class="hint">Clinician and settings persist across reloads.</div>
       </div>
     </div>
-     <div class="hint">Clinician and settings persist across reloads.</div>
-  </div>
-</div>
 
-    <!-- Hidden fields for signature metadata -->
+    <!-- Hidden fields -->
     <input type="hidden" id="signatureId" />
     <input type="hidden" id="signedAt" />
 
-
-
-<div id="icuContainer" class="section icu-sec" style="display:none"></div>
-
-
-
-
-
-
-
+    <div id="icuContainer" class="section icu-sec" style="display:none"></div>
   </main>
 
-
-
-
-
-
-
-
-  <script>
-    (function(){
-      function updateStatus(){
-        var el=document.getElementById('assistLevel');
-        var out=document.getElementById('assistStatus');
-        if(!out)return;
-        if(!el){out.textContent='Assist: 0 — Off';return}
-        var map={'0':'Off','1':'Brief A','2':'Brief A+P','3':'Full A + Brief P','4':'Full A + Full P','5':'Full A, No Plan'};
-        out.textContent='Assist: '+(el.value||'0')+' — '+(map[el.value]||'Off');
-      }
-function applyNoteType(){
-  var t=document.getElementById('noteType') ? document.getElementById('noteType').value : 'soap';
-  var soapBlocks = document.querySelectorAll('.soap-sec');
-  var birp = document.getElementById('sec-birp');
-  var icu = document.getElementById('sec-icu');
-
-  soapBlocks.forEach(function(n){ n.style.display = (t === 'soap' ? '' : 'none'); });
-  if (birp) birp.style.display = (t === 'birp' ? '' : 'none');
-  if (icu)  icu.style.display  = (t === 'ICU Progress' ? '' : 'none');
-}
-      document.addEventListener('change',function(e){
-        if(e.target&&e.target.id==='assistLevel')updateStatus()
-        if(e.target&&e.target.id==='noteType')applyNoteType()
-      })
-      document.addEventListener('DOMContentLoaded',function(){updateStatus();applyNoteType()})
-    })();
-  </script>
   <script src="./persist-ui.js?v=13"></script>
   <script src="./icd-suggest.js?v=5"></script>
-
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const noteTypeSelect = document.getElementById("noteType");
-  // target the full Telehealth section, not just details
-  const telehealthSection = document.querySelector('.section details#telehealthDetails')?.closest('.section');
-
-  function updateTelehealthVisibility() {
-    const val = noteTypeSelect?.value || "";
-    if (telehealthSection) {
-      // Hide entire card when ICU Progress is selected
-      telehealthSection.style.display = (val === "ICU Progress") ? "none" : "block";
-    }
-  }
-
-  if (noteTypeSelect) {
-    noteTypeSelect.addEventListener("change", updateTelehealthVisibility);
-    updateTelehealthVisibility(); // run once on load
-  }
-});
-</script>
-
-
-
-
-
-
   <script src="./actions-stable.js?v=12.4"></script>
-
-
-<script src="./icu-templates.js"></script>
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const noteTypeSel = document.getElementById("noteType");
-    const onChange = () => {
-      const type = noteTypeSel.value;
-      if (type.startsWith("ICU")) loadICUSection(type);
-    };
-    noteTypeSel.addEventListener("change", onChange);
-    onChange();
-  });
-</script>
-
-
-
-
-
-
-
-
-
-
-
+  <script src="./icu-templates.js"></script>
   <script src="./datetime-now.js"></script>
   <script defer src="/birp-actions.js"></script>
+  <script src="/session-config.js"></script>
 
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const noteTypeSel = document.getElementById("noteType");
-  const assistSel = document.getElementById("assistLevel");
-
-  const soapOptions = [
-    { value: "0", text: "0 — Off" },
-    { value: "1", text: "1 — Brief A" },
-    { value: "2", text: "2 — Brief A+P" },
-    { value: "3", text: "3 — Full A + Brief P" },
-    { value: "4", text: "4 — Full A + Full P" },
-    { value: "5", text: "5 — Full A, No Plan" },
-  ];
-
-  const birpOptions = [
-    { value: "0", text: "0 — Off" },
-    { value: "1", text: "1 — Brief rewrite (~1 sentence each)" },
-    { value: "2", text: "2 — Concise rewrite (1–2 sentences each)" },
-    { value: "3", text: "3 — Expanded rewrite (2–4 sentences each)" },
-    { value: "4", text: "4 — Full clinical draft (short paragraphs)" },
-    { value: "5", text: "5 — Comprehensive draft (detailed phrasing)" },
-  ];
-
-  function updateAssistOptions() {
-    const type = noteTypeSel.value;
-    const options = type === "birp" ? birpOptions : soapOptions;
-
-    // preserve currently selected value if it exists in new set
-    const current = assistSel.value;
-
-    assistSel.innerHTML = "";
-    options.forEach(opt => {
-      const o = document.createElement("option");
-      o.value = opt.value;
-      o.textContent = opt.text;
-      assistSel.appendChild(o);
-    });
-
-    // restore selection if possible, otherwise default to 0
-    if ([...assistSel.options].some(o => o.value === current)) {
-      assistSel.value = current;
-    } else {
-      assistSel.value = "0";
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const noteTypeSelect = document.getElementById("noteType");
+    const telehealthSection = document.querySelector('.section details#telehealthDetails')?.closest('.section');
+    function updateTelehealthVisibility() {
+      const val = noteTypeSelect?.value || "";
+      if (telehealthSection) telehealthSection.style.display = (val === "ICU Progress") ? "none" : "block";
     }
-  }
-
-  noteTypeSel.addEventListener("change", updateAssistOptions);
-  updateAssistOptions(); // run once on load
-});
-</script>
- <script src="/session-config.js"></script>
-<script>
-(function() {
-  // Pull value from server via env injection or hardcode
-  const idleMinutes = window.__SESSION_IDLE_MINUTES__ || 30; 
-  const idleMs = idleMinutes * 60 * 1000; 
-
-  let idleTimer;
-
-  function resetIdleTimer() {
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => {
-      console.log("Idle timeout reached — logging out.");
-      window.location.href = "/logout"; // force server logout + redirect to Google
-    }, idleMs);
-  }
-
-  // Reset timer on activity
-  ["mousemove","keydown","mousedown","touchstart"].forEach(evt => {
-    document.addEventListener(evt, resetIdleTimer, { passive: true });
+    noteTypeSelect.addEventListener("change", updateTelehealthVisibility);
+    updateTelehealthVisibility();
   });
-
-  // Start on load
-  resetIdleTimer();
-})();
-</script>
-
-<script>
-  // When user returns to this page using Back/Forward navigation,
-  // force a full reload so auth check runs again
-  window.addEventListener("pageshow", function (event) {
-    if (event.persisted || performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
-      window.location.reload();
-    }
-  });
-</script>
-
-
-
-
-
+  </script>
 </body>
 </html>

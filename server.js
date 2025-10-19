@@ -394,13 +394,8 @@ function computeSubjective(body){
   const fh        = s(body.familyHistory);
   const sh        = s(body.socialHistory);
   const allergies = s(body.allergies);
-  // ✅ Handle ROS and ROS Comments properly
   const rosArray  = Array.isArray(body.ros) ? body.ros.filter(Boolean) : [];
   const rosComments = s(body.rosComments);
-
-
-
-
 
   const parts = [];
   if (cc)  parts.push(`Chief Complaint: ${cc}`);
@@ -409,7 +404,6 @@ function computeSubjective(body){
   if (psh) parts.push(`PSH: ${psh}`);
   if (fh)  parts.push(`FH: ${fh}`);
   if (sh)  parts.push(`SH: ${sh}`);
-  // ✅ New section for ROS and comments
   if (rosArray.length) parts.push(`Review of Systems: ${rosArray.join(", ")}`);
   if (rosComments) parts.push(`ROS Comments: ${rosComments}`);
   if (allergies) parts.push(`Allergies: ${allergies}`);

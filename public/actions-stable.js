@@ -1,496 +1,168 @@
-"use strict";
+'use strict';
 
-/* ------------------ Small UX Helpers (added) ------------------ */
-function ensureLoadingIndicator() {
-  if (!document.getElementById("__ux_injected_styles")) {
-    const style = document.createElement("style");
-    style.id = "__ux_injected_styles";
-    style.textContent = `
-      button.__btn-flash {
-        background-color: #cce5ff !important;
-        transition: background-color 0.5s ease;
-      }
-      #loading-indicator {
-        display: none;
-        color: #007bff;
-        font-weight: 600;
-        margin: 8px 0;
-      }
-    `;
-    document.head.appendChild(style);
-  }
+document.addEventListener('DOMContentLoaded', () => {
+  const noteTypeSel = document.getElementById('noteType');
+  const generateBtn = document.getElementById('generateNote');
+  const exportBtn = document.getElementById('exportPdf');
+  const redactChk = document.getElementById('redact');
+  const assistSel = document.getElementById('assistLevel');
+  const modelSel = document.getElementById('llmModel');
+  const specialtySel = document.getElementById('specialty');
+  const outputBox = document.getElementById('generatedNote');
+  const signBtn = document.getElementById('signNote');
 
-  let node = document.getElementById("loading-indicator");
-  if (!node) {
-    node = document.createElement("div");
-    node.id = "loading-indicator";
-    node.textContent = "⏳ Generating note…";
-    const genNote = document.getElementById("generatedNote");
-    if (genNote && genNote.parentElement) {
-      genNote.parentElement.insertAdjacentElement("beforebegin", node);
-    } else {
-      const header = document.querySelector("header") || document.body;
-      header.insertAdjacentElement("afterend", node);
-    }
-  }
-  return node;
-}
-function showLoading(show) {
-  const node = document.getElementById("loading-indicator") || ensureLoadingIndicator();
-  node.style.display = show ? "block" : "none";
-}
-function flashButton(btn) {
-  if (!btn) return;
-  btn.classList.add("__btn-flash");
-  setTimeout(() => btn.classList.remove("__btn-flash"), 500);
-}
+  if (!generateBtn) return;
 
-/* ------------------ SOAP Generation ------------------ */
-async function generateSOAP() {
-  // ✅ Collect checked Review of Systems items
-  const rosSelections = Array.from(document.querySelectorAll('#ros input[type="checkbox"]:checked'))
-    .map(cb => cb.value.trim());
-
-  const body = {
-    assistLevel: Number(document.getElementById("assistLevel")?.value || 0),
-    chiefComplaint: document.getElementById("chiefComplaint")?.value || "",
-    hpi: document.getElementById("hpi")?.value || "",
-    pmh: document.getElementById("pmh")?.value || "",
-    psh: document.getElementById("psh")?.value || "",
-    familyHistory: document.getElementById("familyHistory")?.value || "",
-    socialHistory: document.getElementById("socialHistory")?.value || "",
-    allergies: document.getElementById("allergies")?.value || "",
-    physicalExam: document.getElementById("physicalExam")?.value || "",
-    bp: document.getElementById("bp")?.value || "",
-    hr: document.getElementById("hr")?.value || "",
-    temp: document.getElementById("temp")?.value || "",
-    rr: document.getElementById("rr")?.value || "",
-    spo2: document.getElementById("spo2")?.value || "",
-    height: document.getElementById("height")?.value || "",
-    weight: document.getElementById("weight")?.value || "",
-    labs: document.getElementById("labs")?.value || "",
-    medications: document.getElementById("medications")?.value || "",
-    model: document.getElementById("llmModel")?.value || "",
-    provider: document.getElementById("provider")?.value || "",
-    telePlatform: document.getElementById("telePlatform")?.value || "",
-    teleModality: document.getElementById("teleModality")?.value || "",
-    telePatientLocation: document.getElementById("telePatientLocation")?.value || "",
-    teleConsent: document.getElementById("teleConsent")?.checked || false,
-    teleConsentAt: document.getElementById("teleConsentAt")?.value || "",    
-
-    // ✅ New Review of Systems fields
- ros: Array.from(document.querySelectorAll("#ros input[type='checkbox']:checked")).map(cb => cb.value),
-rosComments: document.getElementById("rosComments")?.value || "",
-  }
-  try {
-    showLoading(true);
-    const res = await fetch("/api/soap", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+  async function callAPI(url, data) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
     });
-
-    const data = await res.json();
-    console.log("Generated SOAP JSON:", data);
-
-    window.currentNoteType = "soap";
-    if (data) {
-      if (data.id) window.currentNoteId = data.id;
-
-      document.getElementById("generatedNote").value =
-        data.generatedNote || data.text || data.noteText || data.note || "No note returned";
-
-      if (data.icdSuggestions) {
-        const icdBox = document.getElementById("icd-box");
-        if (icdBox) {
-          icdBox.textContent = data.icdSuggestions
-            .map(s => `${s.code} — ${s.description}`)
-            .join("\n");
-        }
-      }
-    } else {
-      document.getElementById("generatedNote").value =
-        "Error: SOAP generation returned no data";
-    }
-  } catch (e) {
-    document.getElementById("generatedNote").value = "Error: " + e.message;
-  } finally {
-    showLoading(false);
+    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+    return res.json();
   }
-}
-/* ------------------ BIRP Generation ------------------ */
-async function generateBIRP() {
-  const body = {
-    birpBehavior: document.getElementById("birpBehavior")?.value || "",
-    birpIntervention: document.getElementById("birpIntervention")?.value || "",
-    birpResponse: document.getElementById("birpResponse")?.value || "",
-    birpPlan: document.getElementById("birpPlan")?.value || "",
-    assistLevel: Number(document.getElementById("assistLevel")?.value || 0),
-    model: document.getElementById("llmModel")?.value || "",
-    provider: document.getElementById("provider")?.value || "",
-    telePlatform: document.getElementById("telePlatform")?.value || "",
-    teleModality: document.getElementById("teleModality")?.value || "",
-    telePatientLocation: document.getElementById("telePatientLocation")?.value || "",
-    teleConsent: document.getElementById("teleConsent")?.checked || false,
-    teleConsentAt: document.getElementById("teleConsentAt")?.value || ""
-  };
 
-  try {
-    showLoading(true);
-    const res = await fetch("/api/birp-enhance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
-    const data = await res.json();
-    console.log("Generated BIRP JSON:", data);
-
-    window.currentNoteType = "birp";
-    if (data) {
-      if (data.id) window.currentNoteId = data.id;
-
-document.getElementById("generatedNote").value =
-  data.text || data.generatedNote || data.note || "No note returned";
-    } else {
-      document.getElementById("generatedNote").value =
-        "Error: BIRP generation returned no data";
-    }
-  } catch (e) {
-    document.getElementById("generatedNote").value = "Error: " + e.message;
-  } finally {
-    showLoading(false);
+  function gatherTelehealth() {
+    return {
+      telePlatform: document.getElementById('telePlatform')?.value || '',
+      teleModality: document.getElementById('teleModality')?.value || '',
+      telePatientLocation: document.getElementById('telePatientLocation')?.value || '',
+      teleConsentAt: document.getElementById('teleConsentAt')?.value || '',
+      teleConsent: document.getElementById('teleConsent')?.checked || false
+    };
   }
-}
 
-/* ------------------ Generate Button ------------------ */
+  function gatherClinician() {
+    return {
+      provider: document.getElementById('provider')?.value || '',
+      credentials: document.getElementById('credentials')?.value || '',
+      npi: document.getElementById('npi')?.value || '',
+      clinic: document.getElementById('clinic')?.value || '',
+      providerLocation: document.getElementById('providerLocation')?.value || ''
+    };
+  }
 
-/* ------------------ Generate Button ------------------ */
-document.getElementById("generateNote")?.addEventListener("click", async (e) => {
-  e.preventDefault();
-  flashButton(e.currentTarget);
-
-  const noteType = document.getElementById("noteType")?.value;
-  if (noteType === "soap") {
-    await generateSOAP();
-  } else if (noteType === "birp") {
-    await generateBIRP();
-  } else if (noteType === "ICU Progress") {
-    const icuInterval = document.getElementById("icuInterval").value || "";
-    const icuObjective  = document.getElementById("icuObjective").value  || "";
-    const icuAssessment = document.getElementById("icuAssessment").value || "";
-    const icuPlan       = document.getElementById("icuPlan").value       || "";
-    const assistLevel   = parseInt(document.getElementById("assistLevel").value);
-    const model         = document.getElementById("llmModel").value;
+  async function generateNote() {
+    const noteType = noteTypeSel.value;
+    const model = modelSel.value;
+    const assistLevel = assistSel.value;
+    outputBox.value = 'Generating note... please wait.';
 
     try {
-      showLoading(true);
-      const body = {
-        icuInterval,
-        icuObjective,
-        icuAssessment,
-        icuPlan,
-        assistLevel,
-        model,
-        constraints: {
-          strict: true,
-          forbidFabrication: true,
-          restrictToProvidedFields: true,
-          omitUnknowns: true
-        },
-        generationHints: { temperature: 0.1, top_p: 0.8 }
-      };
+      let result;
 
-      const resp = await fetch("/api/icu-enhance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
+      if (noteType === 'ICU Progress') {
+        const data = {
+          icuInterval: document.getElementById('icuInterval')?.value || '',
+          icuObjective: document.getElementById('icuObjective')?.value || '',
+          icuAssessment: document.getElementById('icuAssessment')?.value || '',
+          icuPlan: document.getElementById('icuPlan')?.value || '',
+          model,
+          assistLevel
+        };
+        result = await callAPI('/api/icu-enhance', data);
+      }
 
-      const data = await resp.json();
-      const out = document.getElementById("generatedNote");
-      if (data.ok && (data.generatedNote || data.noteText || data.note)) {
-        out.value = data.generatedNote || data.noteText || data.note;
+      else if (noteType === 'BIRP') {
+        const data = {
+          behavior: document.getElementById('birpBehavior')?.value || '',
+          intervention: document.getElementById('birpIntervention')?.value || '',
+          response: document.getElementById('birpResponse')?.value || '',
+          plan: document.getElementById('birpPlan')?.value || '',
+          model,
+          assistLevel
+        };
+        result = await callAPI('/api/birp', data);
+      }
+
+      else {
+        // SOAP note
+        const rosChecked = Array.from(document.querySelectorAll('#ros input[type=checkbox]:checked')).map(c => c.value);
+        const rosComments = document.getElementById('rosComments')?.value || '';
+
+        const data = {
+          chiefComplaint: document.getElementById('chiefComplaint')?.value || '',
+          hpi: document.getElementById('hpi')?.value || '',
+          pmh: document.getElementById('pmh')?.value || '',
+          psh: document.getElementById('psh')?.value || '',
+          familyHistory: document.getElementById('familyHistory')?.value || '',
+          socialHistory: document.getElementById('socialHistory')?.value || '',
+          allergies: document.getElementById('allergies')?.value || '',
+          medications: document.getElementById('medications')?.value || '',
+          physicalExam: document.getElementById('physicalExam')?.value || '',
+          bp: document.getElementById('bp')?.value || '',
+          hr: document.getElementById('hr')?.value || '',
+          temp: document.getElementById('temp')?.value || '',
+          rr: document.getElementById('rr')?.value || '',
+          spo2: document.getElementById('spo2')?.value || '',
+          height: document.getElementById('height')?.value || '',
+          weight: document.getElementById('weight')?.value || '',
+          labs: document.getElementById('labs')?.value || '',
+          ros: rosChecked.join(', '),
+          rosComments,
+          model,
+          assistLevel,
+          specialty: specialtySel.value
+        };
+        result = await callAPI('/api/soap', data);
+      }
+
+      if (result?.ok) {
+        outputBox.value = result.generatedNote || '(No note generated)';
       } else {
-        out.value = "⚠️ No ICU note text returned.";
-        console.error("ICU Progress response missing note:", data);
+        outputBox.value = `Error: ${result?.error || 'Unknown failure'}`;
       }
     } catch (err) {
-      console.error("ICU Progress error:", err);
-      document.getElementById("generatedNote").value =
-        "⚠️ ICU Progress generation failed.";
-    } finally {
-      showLoading(false);
+      outputBox.value = `Error: ${err.message}`;
     }
   }
-});
-/* ------------------ Signing ------------------ */
-document.addEventListener("DOMContentLoaded", () => {
-  ensureLoadingIndicator();
 
-  document.querySelectorAll("button").forEach(btn => {
-    btn.addEventListener("click", () => flashButton(btn));
-  });
-
-  const signBtn = document.getElementById("signNote");
-  const clearBtn = document.getElementById("clearPatient");
-  let isSigned = false;
-
-  function lockUI() {
-    document.querySelectorAll("input, textarea, select, button").forEach(el => {
-      if (el.id !== "clearPatient" && el.id !== "exportPdf") {
-        el.disabled = true;
-      }
-    });
-  }
-
-  function unlockUI() {
-    document.querySelectorAll("input, textarea, select, button").forEach(el => {
-      el.disabled = false;
-    });
-    signBtn.textContent = "Sign Note";
-    signBtn.style.backgroundColor = "";
-    isSigned = false;
-  }
-
-  async function handleSign() {
-    if (isSigned) return;
-
-    const provider = document.getElementById("provider").value.trim();
-    const noteText = document.getElementById("generatedNote").value.trim();
-    const id = window.currentNoteId || "";
-
-    if (!provider || !noteText || !id) {
-      alert("Missing provider, note text, or note ID — cannot sign.");
-      return;
-    }
-
+  async function exportPdf() {
+    const text = outputBox.value.trim();
+    if (!text) return alert('No generated note to export.');
     try {
-      const resp = await fetch("/api/sign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/export-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id,
-          noteText,
-          provider,
-          providerId: document.getElementById("npi").value || "",
-          specialty: document.getElementById("specialty").value || "",
-          assistLevel: document.getElementById("assistLevel").value,
-          patientId: document.getElementById("mrn").value || "",
-          model: document.getElementById("llmModel")?.value || "",
-          noteType: window.currentNoteType || ""
+          noteType: noteTypeSel.value,
+          content: text,
+          patient: {
+            name: document.getElementById('patient')?.value || '',
+            dob: document.getElementById('dob')?.value || '',
+            sex: document.getElementById('sex')?.value || '',
+            mrn: document.getElementById('mrn')?.value || ''
+          },
+          clinician: gatherClinician(),
+          telehealth: gatherTelehealth()
         })
       });
-      const data = await resp.json();
-      window.lastSignData = data;
-      console.log("[sign] full response:", data);
-
-      if (data.ok) {
-        signBtn.textContent = "Signed";
-        signBtn.style.backgroundColor = "pink";
-        signBtn.disabled = true;
-        isSigned = true;
-        lockUI();
-        document.getElementById("signatureId").value = data.signatureId || "";
-        document.getElementById("signedAt").value = data.signedAt || "";
-        alert("Note signed successfully.");
-      } else {
-        alert("Signing failed: " + (data.error || "unknown error"));
-      }
+      if (!res.ok) throw new Error(`PDF export failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
     } catch (err) {
-      console.error("Sign error:", err);
-      alert("Error signing note: " + err.message);
+      alert(err.message);
     }
   }
 
-  function clearPatientData() {
-    const keep = [
-      "provider","credentials","npi","clinic","providerLocation",
-      "assistLevel","specialty","noteType"
-    ];
-    document.querySelectorAll("input, textarea, select").forEach(el => {
-      if (!keep.includes(el.id)) {
-        if (el.tagName === "SELECT") el.selectedIndex = 0;
-        else if (el.type === "checkbox" || el.type === "radio") el.checked = false;
-        else el.value = "";
-      }
-    });
-    const icdBox = document.getElementById("icd-box");
-    if (icdBox) icdBox.textContent = "";
-    const genNote = document.getElementById("generatedNote");
-    if (genNote) genNote.value = "";
-    window.currentNoteId = null;
-    document.getElementById("signatureId").value = "";
-    document.getElementById("signedAt").value = "";
+  async function signNote() {
+    const text = outputBox.value.trim();
+    if (!text) return alert('Generate a note before signing.');
+
+    const clinician = gatherClinician();
+    if (!clinician.provider) return alert('Please enter provider name before signing.');
+
+    const now = new Date().toLocaleString();
+    const signedText = `${text}\n\n---\nSigned electronically by ${clinician.provider}, ${clinician.credentials || ''}\n${clinician.clinic || ''}\n${now}`;
+    outputBox.value = signedText;
+    alert('Note signed and timestamped.');
   }
 
-  if (signBtn) signBtn.addEventListener("click", handleSign);
-  if (clearBtn) clearBtn.addEventListener("click", () => {
-    clearPatientData();
-    unlockUI();
-  });
+  if (generateBtn) generateBtn.addEventListener('click', generateNote);
+  if (exportBtn) exportBtn.addEventListener('click', exportPdf);
+  if (signBtn) signBtn.addEventListener('click', signNote);
 });
-
-/* ------------------ Note Formatting Utility ------------------ */
-function formatNoteText(raw) {
-  const lines = raw.split("\n");
-  const formatted = lines.map(line => {
-    const trimmed = line.trim().replace(/:$/, "");
-    if (/^Subjective$/i.test(trimmed)) return "SUBJECTIVE";
-    if (/^Objective$/i.test(trimmed)) return "OBJECTIVE";
-    if (/^Assessment$/i.test(trimmed)) return "ASSESSMENT";
-    if (/^Plan$/i.test(trimmed)) return "PLAN";
-    return line;
-  });
-  return formatted.join("\n");
-}
-
-/* ------------------ Unified Export PDF (SOAP + BIRP) ------------------ */
-function preprocessNoteText(raw) {
-  let text = raw;
-
-  // normalize endings
-  text = text.replace(/\r\n/g, "\n");
-
-  // format headers
-  text = formatNoteText(text);
-
-  // add END marker
-  text += "\n[[END]]";
-
-  return text;
-}
-
-document.getElementById("exportPdf")?.addEventListener("click", async (e) => {
-  e.preventDefault();
-  flashButton(e.currentTarget);
-
-  const noteType = window.currentNoteType || document.getElementById("noteType")?.value || "soap";
-
-  try {
-    let endpoint = "/export/pdf";
-
-const payload = {
-  patient: document.getElementById("patient")?.value || "",
-  dob: document.getElementById("dob")?.value || "",
-  sex: document.getElementById("sex")?.value || "",
-  mrn: document.getElementById("mrn")?.value || "",
-  provider: document.getElementById("provider")?.value || "",
-  credentials: document.getElementById("credentials")?.value || "",
-  npi: document.getElementById("npi")?.value || "",
-  clinic: document.getElementById("clinic")?.value || "",
-  providerLocation: document.getElementById("providerLocation")?.value || "",
-  specialty: document.getElementById("specialty")?.value || "",
-  signatureId: document.getElementById("signatureId")?.value || "",
-  signedAt: document.getElementById("signedAt")?.value || "",
-  date: new Date().toLocaleString(),
-
-  // --- Telehealth fields ---
-  telePlatform: document.getElementById("telePlatform")?.value || "",
-  teleModality: document.getElementById("teleModality")?.value || "",
-  telePatientLocation: document.getElementById("telePatientLocation")?.value || "",
-  teleConsent: document.getElementById("teleConsent")?.checked || false,
-  teleConsentAt: document.getElementById("teleConsentAt")?.value || "",
-};
-    if (noteType === "soap") {
-      const subjParts = [];
-      if (document.getElementById("chiefComplaint")?.value)
-        subjParts.push("Chief Complaint: " + document.getElementById("chiefComplaint").value);
-      if (document.getElementById("hpi")?.value)
-        subjParts.push("HPI: " + document.getElementById("hpi").value);
-      if (document.getElementById("pmh")?.value)
-        subjParts.push("PMH: " + document.getElementById("pmh").value);
-      if (document.getElementById("psh")?.value)
-        subjParts.push("PSH: " + document.getElementById("psh").value);
-      if (document.getElementById("familyHistory")?.value)
-        subjParts.push("FH: " + document.getElementById("familyHistory").value);
-      if (document.getElementById("socialHistory")?.value)
-        subjParts.push("SH: " + document.getElementById("socialHistory").value);
-     // ✅ Include Review of Systems and Comments
-const rosChecked = Array.from(document.querySelectorAll("#ros input[type='checkbox']:checked"))
-  .map(cb => cb.value)
-  .join(", ");
-if (rosChecked) subjParts.push("ROS: " + rosChecked);
-
-const rosCommentsVal = document.getElementById("rosComments")?.value?.trim();
-if (rosCommentsVal) subjParts.push("ROS Comments: " + rosCommentsVal);
-      if (document.getElementById("allergies")?.value)
-        subjParts.push("Allergies: " + document.getElementById("allergies").value);
-      payload.subjective = subjParts.join("\n");
-
-      const objParts = [];
-      const vitals = [
-        "BP: " + (document.getElementById("bp")?.value || ""),
-        "HR: " + (document.getElementById("hr")?.value || ""),
-        "Temp: " + (document.getElementById("temp")?.value || ""),
-        "RR: " + (document.getElementById("rr")?.value || ""),
-        "SpO2: " + (document.getElementById("spo2")?.value || ""),
-        "Height: " + (document.getElementById("height")?.value || ""),
-        "Weight: " + (document.getElementById("weight")?.value || ""),
-      ].filter(v => !v.endsWith(": ")).join(", ");
-      if (vitals) objParts.push(vitals);
-      if (document.getElementById("labs")?.value)
-        objParts.push("Labs: " + document.getElementById("labs").value);
-      if (document.getElementById("physicalExam")?.value)
-        objParts.push("Exam: " + document.getElementById("physicalExam").value);
-      payload.objective = objParts.join("\n");
-
-      const icdBoxEl = document.getElementById("icd-box");
-      if (icdBoxEl && typeof icdBoxEl.textContent === "string") {
-        payload.icd_codes = icdBoxEl.textContent
-          .split("\n")
-          .map(c => c.trim())
-          .filter(c => c.length > 0);
-      } else {
-        payload.icd_codes = [];
-      }
-
-      const generated = document.getElementById("generatedNote")?.value || "";
-      console.log("[exportPdf] generated note raw:", generated);
-
-      const clean = preprocessNoteText(generated);
-      console.log("[exportPdf] preprocessed note:", clean);
-
-      const rxAssess = /\*\*ASSESSMENT\*\*([\s\S]*?)(?=\*\*PLAN\*\*|\[\[END\]\])/i;
-      const rxPlan   = /\*\*PLAN\*\*([\s\S]*?)(?=\[\[END\]\])/i;
-
-      payload.assessment = (clean.match(rxAssess)?.[1] || "").trim();
-      payload.plan       = (clean.match(rxPlan)?.[1] || "").trim();
-
-      console.log("[exportPdf] final assessment:", payload.assessment);
-      console.log("[exportPdf] final plan:", payload.plan);
-
-    } else if (noteType === "birp") {
-      endpoint = "/export/pdf/birp";
-      payload.behavior = document.getElementById("birpBehavior")?.value || "";
-      payload.intervention = document.getElementById("birpIntervention")?.value || "";
-      payload.response = document.getElementById("birpResponse")?.value || "";
-      payload.plan = document.getElementById("birpPlan")?.value || "";
-      payload.generatedNote = document.getElementById("generatedNote")?.value || "";
-      payload.telePlatform = document.getElementById("telePlatform")?.value || "";
-      payload.teleModality = document.getElementById("teleModality")?.value || "";
-      payload.telePatientLocation = document.getElementById("telePatientLocation")?.value || "";
-      payload.teleConsentAt = document.getElementById("teleConsentAt")?.value || "";
-      payload.teleConsent = document.getElementById("teleConsent")?.checked || false;
-    }
-
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error("Failed to export PDF");
-
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    window.open(url, "_blank");
-    setTimeout(() => window.URL.revokeObjectURL(url), 30000);
-  } catch (err) {
-    console.error("[export] Error exporting PDF:", err);
-    alert("Failed to export PDF: " + err.message);
-  }
-});
-
-window.showNoteType = function () {
-  console.log("currentNoteType:", window.currentNoteType);
-};
