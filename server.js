@@ -8,6 +8,15 @@ const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 
 
 require("dotenv").config();
+
+
+console.log("DISABLE_GOOGLE_AUTH =", process.env.DISABLE_GOOGLE_AUTH);
+
+
+
+
+
+
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
@@ -164,7 +173,7 @@ passport.deserializeUser((obj, done) => done(null, obj));
 
 /* -------------------- App & Config -------------------- */
 app.use(metricsMiddleware());
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: false }));
 
 const PORT = Number(process.env.PORT) || 5050;
@@ -201,8 +210,15 @@ const publicDir = path.join(process.cwd(), 'public');
 
 
 
+// --- Auth middleware with optional bypass for local dev/testing ---
 app.use((req, res, next) => {
-  // Skip auth for these paths
+  // 🔓 Bypass Google auth entirely if DISABLE_GOOGLE_AUTH=1 in .env
+  if (process.env.DISABLE_GOOGLE_AUTH === '1') {
+    console.log('[auth] Google auth disabled for this request:', req.path);
+    return next();
+  }
+
+  // Normal Google-based auth flow
   const openPaths = [
     '/auth/google',
     '/auth/google/callback',
@@ -210,12 +226,16 @@ app.use((req, res, next) => {
     '/health',
     '/admin/metrics'
   ];
+
   if (openPaths.some(p => req.path.startsWith(p))) {
     return next();
   }
+
   if (req.isAuthenticated && req.isAuthenticated()) {
     return next();
   }
+
+  // Redirect unauthenticated users to Google login
   res.redirect('/auth/google');
 });
 
@@ -373,8 +393,14 @@ function computeSubjective(body){
   const psh       = s(body.psh);
   const fh        = s(body.familyHistory);
   const sh        = s(body.socialHistory);
-  const ros       = s(body.ros);
   const allergies = s(body.allergies);
+  // ✅ Handle ROS and ROS Comments properly
+  const rosArray  = Array.isArray(body.ros) ? body.ros.filter(Boolean) : [];
+  const rosComments = s(body.rosComments);
+
+
+
+
 
   const parts = [];
   if (cc)  parts.push(`Chief Complaint: ${cc}`);
@@ -383,7 +409,9 @@ function computeSubjective(body){
   if (psh) parts.push(`PSH: ${psh}`);
   if (fh)  parts.push(`FH: ${fh}`);
   if (sh)  parts.push(`SH: ${sh}`);
-  if (ros) parts.push(`ROS: ${ros}`);
+  // ✅ New section for ROS and comments
+  if (rosArray.length) parts.push(`Review of Systems: ${rosArray.join(", ")}`);
+  if (rosComments) parts.push(`ROS Comments: ${rosComments}`);
   if (allergies) parts.push(`Allergies: ${allergies}`);
 
   return parts.length ? parts.join('\n') : fiveBlanks();
@@ -457,6 +485,12 @@ function hasAnyClinicalInput(body){
 }
 
 
+
+
+
+
+
+
 function parseSOAPSections(text){
   const T = (text || '').replace(/\r\n/g, '\n');
   const heads = ['Subjective','Objective','Assessment','Plan'];
@@ -513,6 +547,29 @@ async function handleSoap(req, res){
     const subj = computeSubjective(req.body || {});
     const obj  = computeObjective(req.body || {});
     const anyInput = hasAnyClinicalInput(req.body || {});
+
+
+// --- TELEHEALTH SECTION (inserted inside handleSoap) ---
+let telehealthBlock = "";
+if (req.body.telePlatform || req.body.teleModality || req.body.telePatientLocation || req.body.teleConsentAt) {
+  const tele = [];
+  if (req.body.telePlatform) tele.push(`Platform: ${req.body.telePlatform}`);
+  if (req.body.teleModality) tele.push(`Modality: ${req.body.teleModality}`);
+  if (req.body.telePatientLocation) tele.push(`Patient Location: ${req.body.telePatientLocation}`);
+  if (req.body.teleConsent) {
+    tele.push(`Consent: Yes${req.body.teleConsentAt ? ` (${req.body.teleConsentAt})` : ""}`);
+  } else if (req.body.teleConsentAt) {
+    tele.push(`Consent Timestamp: ${req.body.teleConsentAt}`);
+  }
+  telehealthBlock = `Telehealth Encounter\n${tele.join("\n")}\n\n`;
+}
+
+
+
+
+
+
+
 
 
 console.log("assistLevel:", assistLevel, "anyInput:", anyInput, "subj:", subj, "obj:", obj);
@@ -609,7 +666,7 @@ Plan:
       plan = fiveBlanks();
     }
 
-    const finalText = shapeSOAP({ subj, obj, assess, plan });
+    const finalText = telehealthBlock + shapeSOAP({ subj, obj, assess, plan });
     return res.json({ 
       ok:true, 
       id: noteId,                // 👈 added UUID
@@ -818,7 +875,6 @@ app.post('/api/icd/suggest', async (req, res, next) => {
     const user =
 `Clinical note:
 ${text}
-
 rules:
 - only phrases (1–4 words), lowercase
 - no codes, no punctuation, no numbering
@@ -873,6 +929,7 @@ rules:
 app.use(require('./middleware/json-error'));
 
 app.use('/', require('./routes/birp-enhance'));
+app.use('/', require('./routes/icu-enhance'));
 
 async function startServer(desired) {
   let p = Number(desired) || 5050;

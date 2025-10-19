@@ -183,31 +183,14 @@ async function buildBirpPdf(body) {
     }
   }
 
-  // TELEHEALTH
-  const tele = [
-    ["Platform", body.telePlatform],
-    ["Consent", body.teleConsent ? "Yes" : ""],
-    ["Consent At", body.teleConsentAt],
-    ["Patient Location", body.telePatientLocation],
-    ["Modality", body.teleModality],
-  ].filter(([_, val]) => val);
-
-  if (tele.length) {
-    ensureSpace();
-    page.drawText("TELEHEALTH", { x: margin, y, size: 12, font: notoSansBold });
-    y -= lineHeight;
-    for (const [label, val] of tele) {
-      y = drawWrappedText(page, `${label}: ${val}`, { x: margin + 20, y, font: notoSans, fontSize: 11, maxWidth: width - 2 * margin - 20, lineHeight });
-    }
-    y -= lineHeight;
-  }
-
+  
   // GENERATED NOTE
   if (body.generatedNote && body.generatedNote.trim()) {
     ensureSpace();
     const lines = body.generatedNote.split(/\r?\n/);
     lines.forEach(line => {
       ensureSpace(2);
+      line = line.replace(/\*\*/g, "");
       if (!line.trim()) {
         y -= lineHeight;
         return;

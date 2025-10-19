@@ -269,6 +269,23 @@ async function buildPdf(body) {
   const assessment = (body.assessment || fullText.match(rxAssess)?.[1] || "").trim();
   const plan = (body.plan || fullText.match(rxPlan)?.[1] || "").trim();
 
+// --- TELEHEALTH HEADER (if provided) ---
+if (body.telePlatform || body.teleModality || body.telePatientLocation || body.teleConsentAt) {
+  const lines = [];
+  if (body.telePlatform) lines.push(`Platform: ${body.telePlatform}`);
+  if (body.teleModality) lines.push(`Modality: ${body.teleModality}`);
+  if (body.telePatientLocation) lines.push(`Patient Location: ${body.telePatientLocation}`);
+  if (body.teleConsent) {
+    lines.push(`Consent: Yes${body.teleConsentAt ? ` (${body.teleConsentAt})` : ""}`);
+  } else if (body.teleConsentAt) {
+    lines.push(`Consent Timestamp: ${body.teleConsentAt}`);
+  }
+  drawSection("Telehealth Encounter", lines.join("\n"));
+}
+  // --- END TELEHEALTH HEADER ---
+
+  // --- MAIN SECTIONS ---
+
   drawSection("Subjective", body.subjective);
   drawSection("Objective", body.objective);
   drawSection("Assessment", assessment);

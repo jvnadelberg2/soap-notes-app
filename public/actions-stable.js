@@ -47,6 +47,10 @@ function flashButton(btn) {
 
 /* ------------------ SOAP Generation ------------------ */
 async function generateSOAP() {
+  // ✅ Collect checked Review of Systems items
+  const rosSelections = Array.from(document.querySelectorAll('#ros input[type="checkbox"]:checked'))
+    .map(cb => cb.value.trim());
+
   const body = {
     assistLevel: Number(document.getElementById("assistLevel")?.value || 0),
     chiefComplaint: document.getElementById("chiefComplaint")?.value || "",
@@ -56,7 +60,6 @@ async function generateSOAP() {
     familyHistory: document.getElementById("familyHistory")?.value || "",
     socialHistory: document.getElementById("socialHistory")?.value || "",
     allergies: document.getElementById("allergies")?.value || "",
-    ros: document.getElementById("ros")?.value || "",
     physicalExam: document.getElementById("physicalExam")?.value || "",
     bp: document.getElementById("bp")?.value || "",
     hr: document.getElementById("hr")?.value || "",
@@ -68,9 +71,17 @@ async function generateSOAP() {
     labs: document.getElementById("labs")?.value || "",
     medications: document.getElementById("medications")?.value || "",
     model: document.getElementById("llmModel")?.value || "",
-    provider: document.getElementById("provider")?.value || ""
-  };
+    provider: document.getElementById("provider")?.value || "",
+    telePlatform: document.getElementById("telePlatform")?.value || "",
+    teleModality: document.getElementById("teleModality")?.value || "",
+    telePatientLocation: document.getElementById("telePatientLocation")?.value || "",
+    teleConsent: document.getElementById("teleConsent")?.checked || false,
+    teleConsentAt: document.getElementById("teleConsentAt")?.value || "",    
 
+    // ✅ New Review of Systems fields
+ ros: Array.from(document.querySelectorAll("#ros input[type='checkbox']:checked")).map(cb => cb.value),
+rosComments: document.getElementById("rosComments")?.value || "",
+  }
   try {
     showLoading(true);
     const res = await fetch("/api/soap", {
@@ -107,7 +118,6 @@ async function generateSOAP() {
     showLoading(false);
   }
 }
-
 /* ------------------ BIRP Generation ------------------ */
 async function generateBIRP() {
   const body = {
@@ -117,7 +127,12 @@ async function generateBIRP() {
     birpPlan: document.getElementById("birpPlan")?.value || "",
     assistLevel: Number(document.getElementById("assistLevel")?.value || 0),
     model: document.getElementById("llmModel")?.value || "",
-    provider: document.getElementById("provider")?.value || ""
+    provider: document.getElementById("provider")?.value || "",
+    telePlatform: document.getElementById("telePlatform")?.value || "",
+    teleModality: document.getElementById("teleModality")?.value || "",
+    telePatientLocation: document.getElementById("telePatientLocation")?.value || "",
+    teleConsent: document.getElementById("teleConsent")?.checked || false,
+    teleConsentAt: document.getElementById("teleConsentAt")?.value || ""
   };
 
   try {
@@ -135,8 +150,8 @@ async function generateBIRP() {
     if (data) {
       if (data.id) window.currentNoteId = data.id;
 
-      document.getElementById("generatedNote").value =
-        data.generatedNote || data.text || data.note || "No note returned";
+document.getElementById("generatedNote").value =
+  data.text || data.generatedNote || data.note || "No note returned";
     } else {
       document.getElementById("generatedNote").value =
         "Error: BIRP generation returned no data";
@@ -149,18 +164,66 @@ async function generateBIRP() {
 }
 
 /* ------------------ Generate Button ------------------ */
-document.getElementById("generateNote")?.addEventListener("click", (e) => {
+
+/* ------------------ Generate Button ------------------ */
+document.getElementById("generateNote")?.addEventListener("click", async (e) => {
   e.preventDefault();
   flashButton(e.currentTarget);
 
   const noteType = document.getElementById("noteType")?.value;
   if (noteType === "soap") {
-    generateSOAP();
+    await generateSOAP();
   } else if (noteType === "birp") {
-    generateBIRP();
+    await generateBIRP();
+  } else if (noteType === "ICU Progress") {
+    const icuInterval = document.getElementById("icuInterval").value || "";
+    const icuObjective  = document.getElementById("icuObjective").value  || "";
+    const icuAssessment = document.getElementById("icuAssessment").value || "";
+    const icuPlan       = document.getElementById("icuPlan").value       || "";
+    const assistLevel   = parseInt(document.getElementById("assistLevel").value);
+    const model         = document.getElementById("llmModel").value;
+
+    try {
+      showLoading(true);
+      const body = {
+        icuInterval,
+        icuObjective,
+        icuAssessment,
+        icuPlan,
+        assistLevel,
+        model,
+        constraints: {
+          strict: true,
+          forbidFabrication: true,
+          restrictToProvidedFields: true,
+          omitUnknowns: true
+        },
+        generationHints: { temperature: 0.1, top_p: 0.8 }
+      };
+
+      const resp = await fetch("/api/icu-enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+
+      const data = await resp.json();
+      const out = document.getElementById("generatedNote");
+      if (data.ok && (data.generatedNote || data.noteText || data.note)) {
+        out.value = data.generatedNote || data.noteText || data.note;
+      } else {
+        out.value = "⚠️ No ICU note text returned.";
+        console.error("ICU Progress response missing note:", data);
+      }
+    } catch (err) {
+      console.error("ICU Progress error:", err);
+      document.getElementById("generatedNote").value =
+        "⚠️ ICU Progress generation failed.";
+    } finally {
+      showLoading(false);
+    }
   }
 });
-
 /* ------------------ Signing ------------------ */
 document.addEventListener("DOMContentLoaded", () => {
   ensureLoadingIndicator();
@@ -272,18 +335,13 @@ document.addEventListener("DOMContentLoaded", () => {
 function formatNoteText(raw) {
   const lines = raw.split("\n");
   const formatted = lines.map(line => {
-    const trimmed = line.trim();
-
-    // Match only exact section headers (with optional colon)
-    if (/^Subjective[:]?$/i.test(trimmed)) return "**SUBJECTIVE**";
-    if (/^Objective[:]?$/i.test(trimmed)) return "**OBJECTIVE**";
-    if (/^Assessment[:]?$/i.test(trimmed)) return "**ASSESSMENT**";
-    if (/^Plan[:]?$/i.test(trimmed)) return "**PLAN**";
-
-    // Leave all other lines intact
+    const trimmed = line.trim().replace(/:$/, "");
+    if (/^Subjective$/i.test(trimmed)) return "SUBJECTIVE";
+    if (/^Objective$/i.test(trimmed)) return "OBJECTIVE";
+    if (/^Assessment$/i.test(trimmed)) return "ASSESSMENT";
+    if (/^Plan$/i.test(trimmed)) return "PLAN";
     return line;
   });
-
   return formatted.join("\n");
 }
 
@@ -311,22 +369,29 @@ document.getElementById("exportPdf")?.addEventListener("click", async (e) => {
 
   try {
     let endpoint = "/export/pdf";
-    const payload = {
-      patient: document.getElementById("patient")?.value || "",
-      dob: document.getElementById("dob")?.value || "",
-      sex: document.getElementById("sex")?.value || "",
-      mrn: document.getElementById("mrn")?.value || "",
-      provider: document.getElementById("provider")?.value || "",
-      credentials: document.getElementById("credentials")?.value || "",
-      npi: document.getElementById("npi")?.value || "",
-      clinic: document.getElementById("clinic")?.value || "",
-      providerLocation: document.getElementById("providerLocation")?.value || "",
-      specialty: document.getElementById("specialty")?.value || "",
-      signatureId: document.getElementById("signatureId")?.value || "",
-      signedAt: document.getElementById("signedAt")?.value || "",
-      date: new Date().toLocaleString(),
-    };
 
+const payload = {
+  patient: document.getElementById("patient")?.value || "",
+  dob: document.getElementById("dob")?.value || "",
+  sex: document.getElementById("sex")?.value || "",
+  mrn: document.getElementById("mrn")?.value || "",
+  provider: document.getElementById("provider")?.value || "",
+  credentials: document.getElementById("credentials")?.value || "",
+  npi: document.getElementById("npi")?.value || "",
+  clinic: document.getElementById("clinic")?.value || "",
+  providerLocation: document.getElementById("providerLocation")?.value || "",
+  specialty: document.getElementById("specialty")?.value || "",
+  signatureId: document.getElementById("signatureId")?.value || "",
+  signedAt: document.getElementById("signedAt")?.value || "",
+  date: new Date().toLocaleString(),
+
+  // --- Telehealth fields ---
+  telePlatform: document.getElementById("telePlatform")?.value || "",
+  teleModality: document.getElementById("teleModality")?.value || "",
+  telePatientLocation: document.getElementById("telePatientLocation")?.value || "",
+  teleConsent: document.getElementById("teleConsent")?.checked || false,
+  teleConsentAt: document.getElementById("teleConsentAt")?.value || "",
+};
     if (noteType === "soap") {
       const subjParts = [];
       if (document.getElementById("chiefComplaint")?.value)
@@ -341,8 +406,14 @@ document.getElementById("exportPdf")?.addEventListener("click", async (e) => {
         subjParts.push("FH: " + document.getElementById("familyHistory").value);
       if (document.getElementById("socialHistory")?.value)
         subjParts.push("SH: " + document.getElementById("socialHistory").value);
-      if (document.getElementById("ros")?.value)
-        subjParts.push("ROS: " + document.getElementById("ros").value);
+     // ✅ Include Review of Systems and Comments
+const rosChecked = Array.from(document.querySelectorAll("#ros input[type='checkbox']:checked"))
+  .map(cb => cb.value)
+  .join(", ");
+if (rosChecked) subjParts.push("ROS: " + rosChecked);
+
+const rosCommentsVal = document.getElementById("rosComments")?.value?.trim();
+if (rosCommentsVal) subjParts.push("ROS Comments: " + rosCommentsVal);
       if (document.getElementById("allergies")?.value)
         subjParts.push("Allergies: " + document.getElementById("allergies").value);
       payload.subjective = subjParts.join("\n");
@@ -403,18 +474,6 @@ document.getElementById("exportPdf")?.addEventListener("click", async (e) => {
       payload.teleConsent = document.getElementById("teleConsent")?.checked || false;
     }
 
-
-console.log("--------------------------------------------------------");
-console.log("[pdf-debug] RAW NOTE TEXT (exact characters):");
-const rawText = payload.generatedNote || payload.assessment || payload.plan || "";
-for (let i = 0; i < rawText.length; i++) {
-  console.log(`${i.toString().padStart(4, "0")}: ${JSON.stringify(rawText[i])}`);
-}
-console.log("--------------------------------------------------------");
-
-
-
-
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -435,14 +494,3 @@ console.log("--------------------------------------------------------");
 window.showNoteType = function () {
   console.log("currentNoteType:", window.currentNoteType);
 };
-
-document.addEventListener('DOMContentLoaded', () => {
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      // direct browser navigation — allows redirect to /auth/google
-      window.location.href = '/logout';
-    });
-  }
-});
-

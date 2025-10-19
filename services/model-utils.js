@@ -4,7 +4,7 @@
 const MODEL_API_URL = (process.env.MODEL_API_URL || 'http://localhost:11434/v1/chat/completions').trim();
 const MODEL_NAME = process.env.MODEL_NAME || 'llama3.1:8b';
 
-async function callModel({ system, user, temperature = 0.2, model, maxTokens }) {
+async function callModel({ system, user, temperature = 0.1, model, maxTokens }) {
   const chosen = (model && String(model).trim()) || MODEL_NAME;
   const body = {
     model: chosen,
